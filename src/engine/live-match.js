@@ -273,6 +273,7 @@ async function startMatch(uid, db, kind, id, seasonYear, options) {
     rowId: row.id,
     seasonYear,
     clStage: kind === 'copa-liga' ? row.stage : null,
+    roundName: kind === 'copa' ? row.round_name : null,
     managedClubId: managedClubId != null ? managedClubId : null,
     minute: 0,
     half: 1,
@@ -943,11 +944,30 @@ async function finalize(db, session, opts) {
   }
   await db.batch(finalizeStmts);
 
+  // Titulo que se festeja de inmediato (pantalla de felicitaciones), solo
+  // cuando el partido recien terminado fue el que definio el campeonato y lo
+  // gano el club que dirige el usuario. La inscripcion real en club_titles
+  // (Copa Chile/Copa de la Liga) sigue ocurriendo al cierre de temporada en
+  // season.js como siempre; esto es puramente para la pantalla, no duplica esa
+  // escritura (la Supercopa es la excepcion: su titulo ya se escribe arriba,
+  // en el momento, como siempre hizo).
+  let championTitle = null;
+  if (session.managedClubId != null && winnerClubId === session.managedClubId) {
+    if (session.kind === 'supercopa') {
+      championTitle = { titleName: 'Campeón Supercopa', trophyImage: 'trophies/supercopa.png' };
+    } else if (session.kind === 'copa' && session.roundName === 'Final') {
+      championTitle = { titleName: 'Campeón Copa Chile', trophyImage: 'trophies/copa-chile.png' };
+    } else if (session.kind === 'copa-liga' && session.clStage === 'final') {
+      championTitle = { titleName: 'Campeón Copa de la Liga', trophyImage: 'trophies/copa-liga.png' };
+    }
+  }
+
   const summary = {
     homeGoals: session.home.goals,
     awayGoals: session.away.goals,
     decidedByPenalties: !!decidedByPenalties,
     winnerClubId,
+    championTitle,
     scorers: {
       home: session.scorers.home.map((s) => ({ scorer: s.scorer.full_name, assist: s.assister ? s.assister.full_name : null })),
       away: session.scorers.away.map((s) => ({ scorer: s.scorer.full_name, assist: s.assister ? s.assister.full_name : null })),

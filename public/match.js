@@ -949,11 +949,35 @@ function renderInspireForm() {
 function showSummary(summary) {
   const { home, away } = mx.view;
   const clasicoGroup = findClasicoGroup(home, away);
-  if (clasicoGroup) {
-    showClasicoResult(summary, clasicoGroup, () => showRegularSummary(summary));
+  const afterChampion = () =>
+    clasicoGroup ? showClasicoResult(summary, clasicoGroup, () => showRegularSummary(summary)) : showRegularSummary(summary);
+  if (summary.championTitle) {
+    showChampionResult(summary, afterChampion);
     return;
   }
-  showRegularSummary(summary);
+  afterChampion();
+}
+
+// Pantalla de felicitaciones al salir campeon de una final que se jugo en
+// vivo (Copa Chile, Copa de la Liga o Supercopa), antes del resumen normal
+// (o del resumen de Clasico, si tambien lo era) - analoga a showClasicoResult.
+function showChampionResult(summary, onContinue) {
+  const overlay = document.querySelector('.match-overlay');
+  const { titleName, trophyImage } = summary.championTitle;
+  const backdrop = document.createElement('div');
+  backdrop.className = 'summary-modal-backdrop';
+  backdrop.innerHTML = `
+    <div class="summary-modal champion-modal">
+      <h2 class="champion-label">¡FELICIDADES, ${escHtml(titleName.toUpperCase())}!</h2>
+      <img class="champion-trophy-img" src="${trophyImage}" alt="${escHtml(titleName)}" onerror="this.style.display='none'">
+      ${summary.decidedByPenalties ? '<div class="sub">Definido por penales</div>' : ''}
+      <button class="close-btn" id="champion-continue-btn">Ver resumen del partido</button>
+    </div>`;
+  overlay.appendChild(backdrop);
+  document.getElementById('champion-continue-btn').addEventListener('click', () => {
+    backdrop.remove();
+    onContinue();
+  });
 }
 
 // Pantalla especial al terminar un Clasico (cualquiera de los CLASICO_GROUPS
