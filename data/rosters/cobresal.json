@@ -1,0 +1,196 @@
+{
+  "club": "Cobresal",
+  "source_url": "https://www.transfermarkt.es/cd-cobresal/startseite/verein/17482",
+  "base_level": 1,
+  "players": [
+    {
+      "full_name": "Alejandro Santander",
+      "birth_date": "2002-11-05",
+      "nationality": "Chile",
+      "position": "Portero",
+      "shirt_number": 12
+    },
+    {
+      "full_name": "José Tiznado",
+      "birth_date": "1994-09-03",
+      "nationality": "Chile",
+      "position": "Defensa",
+      "shirt_number": 20
+    },
+    {
+      "full_name": "Christian Moreno",
+      "birth_date": "1996-04-27",
+      "nationality": "Argentina",
+      "position": "Defensa",
+      "shirt_number": 18
+    },
+    {
+      "full_name": "Franco Bechtholdt",
+      "birth_date": "1993-08-15",
+      "nationality": "Argentina",
+      "position": "Defensa",
+      "shirt_number": 16
+    },
+    {
+      "full_name": "Benjamín Villarroel",
+      "birth_date": "2009-02-05",
+      "nationality": "Chile",
+      "position": "Defensa",
+      "shirt_number": 3
+    },
+    {
+      "full_name": "Antonio Castillo",
+      "birth_date": "1998-11-15",
+      "nationality": "Chile",
+      "position": "Defensa",
+      "shirt_number": 15
+    },
+    {
+      "full_name": "Rodrigo Sandoval",
+      "birth_date": "2001-01-21",
+      "nationality": "Chile",
+      "position": "Defensa",
+      "shirt_number": 4
+    },
+    {
+      "full_name": "Aaron Astudillo",
+      "birth_date": "2000-04-17",
+      "nationality": "Venezuela",
+      "position": "Defensa",
+      "shirt_number": 22
+    },
+    {
+      "full_name": "Guillermo Pacheco",
+      "birth_date": "1989-04-10",
+      "nationality": "Chile",
+      "position": "Defensa",
+      "shirt_number": 23
+    },
+    {
+      "full_name": "Juan Fuentes",
+      "birth_date": "1995-03-21",
+      "nationality": "Chile",
+      "position": "Mediocampista",
+      "shirt_number": 17
+    },
+    {
+      "full_name": "Esteban Valencia",
+      "birth_date": "1999-08-13",
+      "nationality": "Chile",
+      "position": "Mediocampista",
+      "shirt_number": 6
+    },
+    {
+      "full_name": "Benjamín Valenzuela",
+      "birth_date": "2005-04-04",
+      "nationality": "Chile",
+      "position": "Mediocampista",
+      "shirt_number": 13
+    },
+    {
+      "full_name": "Bryan Carvallo",
+      "birth_date": "1996-09-15",
+      "nationality": "Chile",
+      "position": "Mediocampista",
+      "shirt_number": 10
+    },
+    {
+      "full_name": "Matías Contreras",
+      "birth_date": "2005-01-14",
+      "nationality": "Chile",
+      "position": "Mediocampista",
+      "shirt_number": 35
+    },
+    {
+      "full_name": "Benjamín Moreno",
+      "birth_date": "2006-01-20",
+      "nationality": "Chile",
+      "position": "Delantero",
+      "shirt_number": 28
+    },
+    {
+      "full_name": "Benjamín Ramírez",
+      "birth_date": "2006-03-08",
+      "nationality": "Chile",
+      "position": "Delantero",
+      "shirt_number": 24
+    },
+    {
+      "full_name": "Julián Brea",
+      "birth_date": "1999-10-10",
+      "nationality": "Argentina",
+      "position": "Delantero",
+      "shirt_number": 11
+    },
+    {
+      "full_name": "César Yanis",
+      "birth_date": "1996-01-28",
+      "nationality": "Panamá",
+      "position": "Delantero",
+      "shirt_number": 7
+    },
+    {
+      "full_name": "Sergio Carrasco",
+      "birth_date": "2005-01-02",
+      "nationality": "Chile",
+      "position": "Delantero",
+      "shirt_number": 19
+    },
+    {
+      "full_name": "Matías Olguín",
+      "age": 30,
+      "nationality": "Chile",
+      "position": "Portero",
+      "shirt_number": 36
+    },
+    {
+      "full_name": "Víctor Campos",
+      "age": 20,
+      "nationality": "Chile",
+      "position": "Defensa",
+      "shirt_number": 43
+    },
+    {
+      "full_name": "Felipe Villagrán",
+      "age": 29,
+      "nationality": "Chile",
+      "position": "Mediocampista",
+      "shirt_number": 38
+    },
+    {
+      "full_name": "Janpol Morales",
+      "age": 28,
+      "nationality": "Panamá",
+      "position": "Delantero",
+      "shirt_number": 39
+    },
+    {
+      "full_name": "Renato Huerta",
+      "age": 22,
+      "nationality": "Chile",
+      "position": "Delantero",
+      "shirt_number": 14
+    },
+    {
+      "full_name": "Steffan Pino",
+      "age": 32,
+      "nationality": "Chile",
+      "position": "Delantero",
+      "shirt_number": 8
+    },
+    {
+      "full_name": "Franco Frías",
+      "age": 24,
+      "nationality": "Argentina",
+      "position": "Delantero",
+      "shirt_number": 32
+    },
+    {
+      "full_name": "Martín Espinoza Pino",
+      "age": 20,
+      "nationality": "Chile",
+      "position": "Delantero",
+      "shirt_number": 37
+    }
+  ]
+}

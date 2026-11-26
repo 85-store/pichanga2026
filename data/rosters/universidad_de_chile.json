@@ -1,0 +1,30 @@
+{
+  "club": "Universidad de Chile",
+  "source_url": "https://www.transfermarkt.com/club-universidad-de-chile/kader/verein/1037",
+  "base_level": 2,
+  "players": [
+    { "full_name": "Gabriel Castellón", "age": 33, "nationality": "Chile", "position": "GK", "shirt_number": 25 },
+    { "full_name": "Cristopher Toselli", "age": 38, "nationality": "Chile", "position": "GK", "shirt_number": 1 },
+    { "full_name": "Igor Lichnovsky", "age": 32, "nationality": "Chile", "position": "DF", "shirt_number": 3 },
+    { "full_name": "Nicolás Ramírez", "age": 29, "nationality": "Chile", "position": "DF", "shirt_number": 5 },
+    { "full_name": "Bianneider Tamayo", "age": 21, "nationality": "Venezuela", "position": "DF", "shirt_number": 31 },
+    { "full_name": "Matías Zaldivia", "age": 35, "nationality": "Chile", "position": "DF", "shirt_number": 22 },
+    { "full_name": "Marcelo Morales", "age": 23, "nationality": "Chile", "position": "DF", "shirt_number": 14 },
+    { "full_name": "Diego Vargas", "age": 20, "nationality": "Chile", "position": "DF", "shirt_number": 4 },
+    { "full_name": "Fabián Hormazábal", "age": 30, "nationality": "Chile", "position": "DF", "shirt_number": 17 },
+    { "full_name": "Nicolás Fernández", "age": 27, "nationality": "Chile", "position": "DF", "shirt_number": 6 },
+    { "full_name": "Lucas Barrera", "age": 20, "nationality": "Argentina", "position": "MF", "shirt_number": 29 },
+    { "full_name": "Marcelo Díaz", "age": 39, "nationality": "Chile", "position": "MF", "shirt_number": 21 },
+    { "full_name": "Israel Poblete", "age": 31, "nationality": "Chile", "position": "MF", "shirt_number": 8 },
+    { "full_name": "Tobías Reinhart", "age": 26, "nationality": "Argentina", "position": "MF", "shirt_number": 15 },
+    { "full_name": "Charles Aránguiz", "age": 37, "nationality": "Chile", "position": "MF", "shirt_number": 20 },
+    { "full_name": "Javier Altamirano", "age": 27, "nationality": "Chile", "position": "MF", "shirt_number": 19 },
+    { "full_name": "Agustín Arce", "age": 21, "nationality": "Chile", "position": "MF", "shirt_number": 28 },
+    { "full_name": "Ignacio Vásquez", "age": 20, "nationality": "Chile", "position": "FW", "shirt_number": 23 },
+    { "full_name": "Maximiliano Guerrero", "age": 26, "nationality": "Chile", "position": "FW", "shirt_number": 7 },
+    { "full_name": "Gonzalo Reyna", "age": 20, "nationality": "Argentina", "position": "FW", "shirt_number": 32 },
+    { "full_name": "Juan Martín Lucero", "age": 34, "nationality": "Argentina", "position": "FW", "shirt_number": 18 },
+    { "full_name": "Octavio Rivero", "age": 34, "nationality": "Uruguay", "position": "FW", "shirt_number": 9 },
+    { "full_name": "Eduardo Vargas", "age": 37, "nationality": "Chile", "position": "FW", "shirt_number": 11 }
+  ]
+}

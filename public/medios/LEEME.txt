@@ -1,0 +1,12 @@
+Fotos y logo del panel de MEDIOS
+=================================
+
+Copia aqui dentro (public/medios/) estos tres archivos con estos nombres
+EXACTOS:
+
+  borghi.jpg      -> foto de Claudio Borghi
+  tezanos.jpg     -> foto de Manuel de Tezanos
+  tnt-logo.png    -> logo de TNT (ideal con fondo transparente)
+
+Se usan en la vista "Medios" del juego, junto a las opiniones generadas por
+la simulacion. Si falta alguno, simplemente no se muestra (no rompe nada).

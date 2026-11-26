@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Pichanga 2026</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Inter:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="app" style="display:none">
+    <aside class="sidebar">
+      <div class="brand">PICHANGA <span>2026</span></div>
+      <div class="season-box">
+        <div class="label">Temporada</div>
+        <div class="year" id="season-year">—</div>
+        <button class="advance-btn" id="advance-btn">Avanzar temporada ⚽</button>
+        <button class="sfx-toggle-btn" data-no-sfx title="Silenciar efectos de sonido">🔊</button>
+      </div>
+      <div id="career-box"></div>
+      <div class="comp-nav">
+        <button class="comp-link" data-view="league-a">🏆 Liga Primera A</button>
+        <button class="comp-link" data-view="league-b">🏆 Liga Primera B</button>
+        <button class="comp-link" data-view="copa">🏅 Copa Chile</button>
+        <button class="comp-link" data-view="copa-liga">🏆 Copa de la Liga</button>
+        <button class="comp-link" data-view="supercopa">⭐ Supercopa</button>
+        <button class="comp-link" data-view="international">🌎 Copas Internacionales</button>
+        <button class="comp-link" data-view="market">💰 Mercado de pases</button>
+        <button class="comp-link" data-view="medios">📺 Medios</button>
+      </div>
+      <div id="club-nav"></div>
+    </aside>
+    <main class="main" id="main-view"></main>
+    <aside class="right-sidebar" id="right-sidebar">
+      <div class="rs-module" id="relations-module"></div>
+      <div class="rs-module" id="next-match-module"></div>
+      <div class="rs-module" id="formation-module"></div>
+    </aside>
+  </div>
+
+  <div id="title-root"></div>
+  <div id="modal-root"></div>
+  <div id="match-root"></div>
+  <div id="tactics-root"></div>
+
+  <script src="sfx.js"></script>
+  <script src="formations.js"></script>
+  <script src="app.js"></script>
+  <script src="career-events.js"></script>
+  <script src="medios.js"></script>
+  <script src="international.js"></script>
+  <script src="match.js"></script>
+  <script src="tactics.js"></script>
+  <script src="title.js"></script>
+</body>
+</html>

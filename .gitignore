@@ -1,0 +1,16 @@
+node_modules/
+
+# Partidas del jugador (datos locales, no se versionan)
+data/pichanga.db
+data/pichanga.db-*
+data/saves/
+
+# Logs y temporales
+*.log
+.DS_Store
+
+# Credenciales locales (Turso, Firebase, etc.) - nunca se versionan
+.env
+.env.*
+!.env.example
+clave firebase/

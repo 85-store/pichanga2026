@@ -1,0 +1,32 @@
+{
+  "club": "Ñublense",
+  "source_url": "https://www.transfermarkt.com/cd-nublense/kader/verein/14723",
+  "base_level": 1,
+  "players": [
+    { "full_name": "Nicola Pérez", "age": 36, "nationality": "Uruguay", "position": "GK", "shirt_number": 1 },
+    { "full_name": "Hernán Muñoz", "age": 38, "nationality": "Chile", "position": "GK", "shirt_number": 25 },
+    { "full_name": "Osvaldo Bosso", "age": 33, "nationality": "Chile", "position": "DF", "shirt_number": 4 },
+    { "full_name": "Pablo Calderón", "age": 28, "nationality": "Argentina", "position": "DF", "shirt_number": 6 },
+    { "full_name": "Sebastián Valencia", "age": 26, "nationality": "Chile", "position": "DF", "shirt_number": 15 },
+    { "full_name": "Felipe Campos", "age": 33, "nationality": "Chile", "position": "DF", "shirt_number": 5 },
+    { "full_name": "Carlos Salomón", "age": 26, "nationality": "Chile", "position": "DF", "shirt_number": 3 },
+    { "full_name": "Jovany Campusano", "age": 33, "nationality": "Chile", "position": "DF", "shirt_number": 14 },
+    { "full_name": "Diego Sanhueza", "age": 24, "nationality": "Chile", "position": "DF", "shirt_number": 16 },
+    { "full_name": "Joaquín González", "age": 25, "nationality": "Chile", "position": "DF", "shirt_number": 23 },
+    { "full_name": "Diego Céspedes", "age": 28, "nationality": "Chile", "position": "MF", "shirt_number": 18 },
+    { "full_name": "Lorenzo Reyes", "age": 35, "nationality": "Chile", "position": "MF", "shirt_number": 21 },
+    { "full_name": "Manuel Rivera", "age": 30, "nationality": "Chile", "position": "MF", "shirt_number": 28 },
+    { "full_name": "Daniel Saavedra", "age": 22, "nationality": "Chile", "position": "MF", "shirt_number": 13 },
+    { "full_name": "León Mansilla", "age": 20, "nationality": "Chile", "position": "MF", "shirt_number": 35 },
+    { "full_name": "Matías Plaza", "age": 25, "nationality": "Chile", "position": "MF", "shirt_number": 10 },
+    { "full_name": "Ignacio Tapia", "age": 22, "nationality": "Argentina", "position": "MF", "shirt_number": 19 },
+    { "full_name": "Lucas Molina", "age": 20, "nationality": "Chile", "position": "FW", "shirt_number": 11 },
+    { "full_name": "Giovanny Ávalos", "age": 21, "nationality": "Chile", "position": "FW", "shirt_number": 29 },
+    { "full_name": "Alex Valdés", "age": 24, "nationality": "Chile", "position": "FW", "shirt_number": 22 },
+    { "full_name": "Gabriel Graciani", "age": 32, "nationality": "Argentina", "position": "FW", "shirt_number": 8 },
+    { "full_name": "Fernando Ovelar", "age": 22, "nationality": "Paraguay", "position": "FW", "shirt_number": 7 },
+    { "full_name": "Ignacio Jeraldino", "age": 30, "nationality": "Chile", "position": "FW", "shirt_number": 20 },
+    { "full_name": "Esteban Calderón", "age": 22, "nationality": "Chile", "position": "FW", "shirt_number": 26 },
+    { "full_name": "Franco Rami", "age": 23, "nationality": "Argentina", "position": "FW", "shirt_number": 9 }
+  ]
+}

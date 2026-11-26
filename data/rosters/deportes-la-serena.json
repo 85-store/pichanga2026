@@ -1,0 +1,217 @@
+{
+  "club": "Deportes La Serena",
+  "source_url": "https://www.transfermarkt.es/deportes-la-serena/startseite/verein/5747",
+  "base_level": 1,
+  "players": [
+    {
+      "full_name": "José Tapia",
+      "birth_date": "2002-06-03",
+      "nationality": "Chile",
+      "position": "Portero",
+      "shirt_number": 1
+    },
+    {
+      "full_name": "Federico Lanzillotta",
+      "birth_date": "1992-12-01",
+      "nationality": "Argentina",
+      "position": "Portero",
+      "shirt_number": 38
+    },
+    {
+      "full_name": "Ignacio Sáez",
+      "birth_date": "2005-09-04",
+      "nationality": "Chile",
+      "position": "Portero",
+      "shirt_number": 22
+    },
+    {
+      "full_name": "Eryin Sanhueza",
+      "birth_date": "1996-01-29",
+      "nationality": "Chile",
+      "position": "Portero",
+      "shirt_number": 3
+    },
+    {
+      "full_name": "Matías Pérez",
+      "birth_date": "2005-04-13",
+      "nationality": "Chile",
+      "position": "Defensa",
+      "shirt_number": 2
+    },
+    {
+      "full_name": "Andrés Zanini",
+      "birth_date": "1997-01-18",
+      "nationality": "Argentina",
+      "position": "Defensa",
+      "shirt_number": 5
+    },
+    {
+      "full_name": "Lucas Alarcón",
+      "birth_date": "2000-03-05",
+      "nationality": "Chile",
+      "position": "Defensa",
+      "shirt_number": 34
+    },
+    {
+      "full_name": "Ian Rasso",
+      "birth_date": "2000-08-14",
+      "nationality": "Argentina",
+      "position": "Defensa",
+      "shirt_number": 26
+    },
+    {
+      "full_name": "Fernando Dinamarca",
+      "birth_date": "2004-08-08",
+      "nationality": "Chile",
+      "position": "Defensa",
+      "shirt_number": 17
+    },
+    {
+      "full_name": "Yahir Salazar",
+      "birth_date": "2005-01-19",
+      "nationality": "Chile",
+      "position": "Defensa",
+      "shirt_number": 33
+    },
+    {
+      "full_name": "Rafael Delgado",
+      "birth_date": "1990-01-13",
+      "nationality": "Argentina",
+      "position": "Defensa",
+      "shirt_number": 16
+    },
+    {
+      "full_name": "Joaquín Gutiérrez",
+      "birth_date": "2002-07-04",
+      "nationality": "Chile",
+      "position": "Defensa",
+      "shirt_number": 21
+    },
+    {
+      "full_name": "Bruno Gutiérrez",
+      "birth_date": "2002-06-25",
+      "nationality": "Chile",
+      "position": "Defensa",
+      "shirt_number": 29
+    },
+    {
+      "full_name": "Matías Pinto",
+      "birth_date": "2004-09-11",
+      "nationality": "Chile",
+      "position": "Defensa",
+      "shirt_number": 6
+    },
+    {
+      "full_name": "Sebastián Díaz",
+      "birth_date": "1996-02-26",
+      "nationality": "Chile",
+      "position": "Mediocampista",
+      "shirt_number": 4
+    },
+    {
+      "full_name": "Francis Mac Allister",
+      "birth_date": "1995-10-30",
+      "nationality": "Argentina",
+      "position": "Mediocampista",
+      "shirt_number": null
+    },
+    {
+      "full_name": "Gonzalo Escalante",
+      "birth_date": "1993-03-27",
+      "nationality": "Argentina",
+      "position": "Mediocampista",
+      "shirt_number": null
+    },
+    {
+      "full_name": "Matías Marín",
+      "birth_date": "1999-12-19",
+      "nationality": "Chile",
+      "position": "Mediocampista",
+      "shirt_number": 14
+    },
+    {
+      "full_name": "Felipe Chamorro",
+      "birth_date": "2001-07-30",
+      "nationality": "Chile",
+      "position": "Mediocampista",
+      "shirt_number": 28
+    },
+    {
+      "full_name": "Joan Orellana",
+      "birth_date": "2005-06-16",
+      "nationality": "Chile",
+      "position": "Mediocampista",
+      "shirt_number": 10
+    },
+    {
+      "full_name": "Jeisson Vargas",
+      "birth_date": "1997-09-15",
+      "nationality": "Chile",
+      "position": "Delantero",
+      "shirt_number": 7
+    },
+    {
+      "full_name": "Alexander Oroz",
+      "birth_date": "2002-12-15",
+      "nationality": "Chile",
+      "position": "Delantero",
+      "shirt_number": 27
+    },
+    {
+      "full_name": "Cristóbal Sepúlveda",
+      "birth_date": "2008-01-16",
+      "nationality": "Chile",
+      "position": "Delantero",
+      "shirt_number": 15
+    },
+    {
+      "full_name": "Bastián Contreras",
+      "birth_date": "2005-10-30",
+      "nationality": "Chile",
+      "position": "Delantero",
+      "shirt_number": 19
+    },
+    {
+      "full_name": "Bastián Sandoval",
+      "birth_date": "2008-06-06",
+      "nationality": "Chile",
+      "position": "Delantero",
+      "shirt_number": 11
+    },
+    {
+      "full_name": "Diego Rubio",
+      "birth_date": "1993-05-15",
+      "nationality": "Chile",
+      "position": "Delantero",
+      "shirt_number": null
+    },
+    {
+      "full_name": "Ángelo Henríquez",
+      "birth_date": "1994-04-13",
+      "nationality": "Chile",
+      "position": "Delantero",
+      "shirt_number": 34
+    },
+    {
+      "full_name": "Nicolás Stefanelli",
+      "birth_date": "1994-11-22",
+      "nationality": "Argentina",
+      "position": "Delantero",
+      "shirt_number": null
+    },
+    {
+      "full_name": "Gonzalo Figueroa",
+      "birth_date": "2000-04-10",
+      "nationality": "Argentina",
+      "position": "Delantero",
+      "shirt_number": 24
+    },
+    {
+      "full_name": "Fabricio Díaz",
+      "birth_date": "2006-04-13",
+      "nationality": "Argentina",
+      "position": "Delantero",
+      "shirt_number": null
+    }
+  ]
+}

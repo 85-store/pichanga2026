@@ -1,0 +1,16 @@
+Fotos de fondo del menu de inicio
+=================================
+
+Copia aqui dentro (public/menu-photos/) tus 6 fotos con estos nombres
+EXACTOS:
+
+  foto1.jpg
+  foto2.jpg
+  foto3.jpg
+  foto4.jpg
+  foto5.jpg
+  foto6.jpg
+
+Se muestran como decoracion de fondo en el menu de inicio, sin ningun texto
+ni etiqueta encima. Si falta alguna, simplemente no se muestra (no rompe
+nada); no hay reemplazo tipo camiseta para estas.

@@ -1,0 +1,33 @@
+{
+  "club": "Deportes Antofagasta",
+  "source_url": "https://www.transfermarkt.com/club-de-deportes-antofagasta/kader/verein/17222",
+  "base_level": 0,
+  "players": [
+    { "full_name": "Juan Pablo Cisternas", "age": 24, "nationality": "Chile", "position": "GK", "shirt_number": 25, "source_url": "https://www.transfermarkt.com/juan-pablo-cisternas/profil/spieler/844439" },
+    { "full_name": "Cristóbal Marín", "age": 22, "nationality": "Chile", "position": "GK", "shirt_number": 1, "source_url": "https://www.transfermarkt.com/cristobal-marin/profil/spieler/1108455" },
+    { "full_name": "Fernando Hurtado", "age": 43, "nationality": "Chile", "position": "GK", "shirt_number": 12, "source_url": "https://www.transfermarkt.com/fernando-hurtado/profil/spieler/89712" },
+    { "full_name": "Mathías Suárez", "age": 30, "nationality": "Uruguay", "position": "DF", "shirt_number": 22, "source_url": "https://www.transfermarkt.com/mathias-suarez/profil/spieler/294895" },
+    { "full_name": "Cristián Díaz", "age": 23, "nationality": "Chile", "position": "DF", "shirt_number": 6, "source_url": "https://www.transfermarkt.com/cristian-diaz/profil/spieler/953173" },
+    { "full_name": "Bastián Tapia", "age": 24, "nationality": "Chile", "position": "DF", "shirt_number": 4, "source_url": "https://www.transfermarkt.com/bastian-tapia/profil/spieler/745619" },
+    { "full_name": "Rodrigo Astorga", "age": 22, "nationality": "Chile", "position": "DF", "shirt_number": 5, "source_url": "https://www.transfermarkt.com/rodrigo-astorga/profil/spieler/1039588" },
+    { "full_name": "Diego Salvia", "age": 26, "nationality": "Chile", "position": "DF", "shirt_number": 28, "source_url": "https://www.transfermarkt.com/diego-salvia/profil/spieler/907539" },
+    { "full_name": "Alex Ibacache", "age": 27, "nationality": "Chile", "position": "DF", "shirt_number": 15, "source_url": "https://www.transfermarkt.com/alex-ibacache/profil/spieler/571083" },
+    { "full_name": "Zacarías Abuhadba", "age": 21, "nationality": "Chile", "position": "DF", "shirt_number": 13, "source_url": "https://www.transfermarkt.com/zacarias-abuhadba/profil/spieler/1059232" },
+    { "full_name": "Simón Ramírez", "age": 28, "nationality": "Chile", "position": "DF", "shirt_number": 31, "source_url": "https://www.transfermarkt.com/simon-ramirez/profil/spieler/401712" },
+    { "full_name": "Manuel Maluenda", "age": 23, "nationality": "Chile", "position": "DF", "shirt_number": 3, "source_url": "https://www.transfermarkt.com/manuel-maluenda/profil/spieler/974174" },
+    { "full_name": "Franko Siegler", "age": 20, "nationality": "Chile", "position": "DF", "shirt_number": 23, "source_url": "https://www.transfermarkt.com/franko-siegler/profil/spieler/1241479" },
+    { "full_name": "Sebastián Leyton", "age": 33, "nationality": "Chile", "position": "MF", "shirt_number": 8, "source_url": "https://www.transfermarkt.com/sebastian-leyton/profil/spieler/184987" },
+    { "full_name": "Fabián Manzano", "age": 32, "nationality": "Chile", "position": "MF", "shirt_number": 15, "source_url": "https://www.transfermarkt.com/fabian-manzano/profil/spieler/249729" },
+    { "full_name": "Adrián Cuadra", "age": 29, "nationality": "Chile", "position": "MF", "shirt_number": 20, "source_url": "https://www.transfermarkt.com/adrian-cuadra/profil/spieler/413189" },
+    { "full_name": "Nelson Sepúlveda", "age": 34, "nationality": "Chile", "position": "MF", "shirt_number": 18, "source_url": "https://www.transfermarkt.com/nelson-sepulveda/profil/spieler/214655" },
+    { "full_name": "Sergio Hinojosa", "age": 22, "nationality": "Chile", "position": "MF", "shirt_number": 26, "source_url": "https://www.transfermarkt.com/sergio-hinojosa/profil/spieler/1129281" },
+    { "full_name": "Patricio Castro", "age": 22, "nationality": "Chile", "position": "MF", "shirt_number": 24, "source_url": "https://www.transfermarkt.com/patricio-castro/profil/spieler/1193272" },
+    { "full_name": "Diego Rojas", "age": 31, "nationality": "Chile", "position": "MF", "shirt_number": 10, "source_url": "https://www.transfermarkt.com/diego-rojas/profil/spieler/249756" },
+    { "full_name": "José Bandez", "age": 27, "nationality": "Venezuela", "position": "FW", "shirt_number": 11, "source_url": "https://www.transfermarkt.com/jose-bandez/profil/spieler/427684" },
+    { "full_name": "Brayan Hurtado", "age": 27, "nationality": "Venezuela", "position": "FW", "shirt_number": 17, "source_url": "https://www.transfermarkt.com/brayan-hurtado/profil/spieler/427609" },
+    { "full_name": "Kevin Campillay", "age": 25, "nationality": "Chile", "position": "FW", "shirt_number": 14, "source_url": "https://www.transfermarkt.com/kevin-campillay/profil/spieler/907540" },
+    { "full_name": "Christian Bravo", "age": 33, "nationality": "Chile", "position": "FW", "shirt_number": 7, "source_url": "https://www.transfermarkt.com/christian-bravo/profil/spieler/189735" },
+    { "full_name": "Matías Gallegos", "age": 29, "nationality": "Argentina", "position": "FW", "shirt_number": 16, "source_url": "https://www.transfermarkt.com/matias-gallegos/profil/spieler/534622" },
+    { "full_name": "Josepablo Monreal", "age": 30, "nationality": "Chile", "position": "FW", "shirt_number": 9, "source_url": "https://www.transfermarkt.com/josepablo-monreal/profil/spieler/454931" }
+  ]
+}

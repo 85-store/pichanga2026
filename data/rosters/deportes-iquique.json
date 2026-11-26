@@ -1,0 +1,31 @@
+{
+  "club": "Deportes Iquique",
+  "source_url": "https://www.transfermarkt.com/club-deportes-iquique/kader/verein/18076",
+  "base_level": 0,
+  "players": [
+    { "full_name": "Zacarías López", "age": 28, "nationality": "Chile", "position": "GK", "shirt_number": 25, "source_url": "https://www.transfermarkt.com/zacarias-lopez/profil/spieler/365813" },
+    { "full_name": "Daniel Castillo", "age": 36, "nationality": "Chile", "position": "GK", "shirt_number": 12, "source_url": "https://www.transfermarkt.com/daniel-castillo/profil/spieler/216102" },
+    { "full_name": "Jorge Ayala", "age": 31, "nationality": "Uruguay", "position": "DF", "shirt_number": 15, "source_url": "https://www.transfermarkt.com/jorge-ayala/profil/spieler/437538" },
+    { "full_name": "Vicente Concha", "age": 24, "nationality": "Chile", "position": "DF", "shirt_number": 5, "source_url": "https://www.transfermarkt.com/vicente-concha/profil/spieler/924182" },
+    { "full_name": "Mario López Quintana", "age": 31, "nationality": "Paraguay", "position": "DF", "shirt_number": 6, "source_url": "https://www.transfermarkt.com/mario-lopez-quintana/profil/spieler/364373" },
+    { "full_name": "Franco Ledesma", "age": 34, "nationality": "Argentina", "position": "DF", "shirt_number": 26, "source_url": "https://www.transfermarkt.com/franco-ledesma/profil/spieler/541864" },
+    { "full_name": "Matías Blázquez", "age": 35, "nationality": "Chile", "position": "DF", "shirt_number": 30, "source_url": "https://www.transfermarkt.com/matias-blazquez/profil/spieler/138965" },
+    { "full_name": "Felipe Espinoza", "age": 27, "nationality": "Chile", "position": "DF", "shirt_number": 21, "source_url": "https://www.transfermarkt.com/felipe-espinoza/profil/spieler/727980" },
+    { "full_name": "Dilan Rojas", "age": 22, "nationality": "Chile", "position": "DF", "shirt_number": 14, "source_url": "https://www.transfermarkt.com/dilan-rojas/profil/spieler/892919" },
+    { "full_name": "Simón Contreras", "age": 24, "nationality": "Chile", "position": "DF", "shirt_number": 16, "source_url": "https://www.transfermarkt.com/simon-contreras/profil/spieler/740255" },
+    { "full_name": "Joaquín Pereyra", "age": 32, "nationality": "Uruguay", "position": "MF", "shirt_number": 23, "source_url": "https://www.transfermarkt.com/joaquin-pereyra/profil/spieler/365823" },
+    { "full_name": "Brayan Garrido", "age": 27, "nationality": "Chile", "position": "MF", "shirt_number": 18, "source_url": "https://www.transfermarkt.com/brayan-garrido/profil/spieler/580294" },
+    { "full_name": "Diego Orellana", "age": 33, "nationality": "Chile", "position": "MF", "shirt_number": 20, "source_url": "https://www.transfermarkt.com/diego-orellana/profil/spieler/156029" },
+    { "full_name": "David Tello", "age": 22, "nationality": "Colombia", "position": "MF", "shirt_number": 33, "source_url": "https://www.transfermarkt.com/david-tello/profil/spieler/1509410" },
+    { "full_name": "Agustín Venezia", "age": 23, "nationality": "Argentina", "position": "MF", "shirt_number": 8, "source_url": "https://www.transfermarkt.com/agustin-venezia/profil/spieler/909399" },
+    { "full_name": "Leonardo Troncoso", "age": 21, "nationality": "Chile", "position": "MF", "shirt_number": 28, "source_url": "https://www.transfermarkt.com/leonardo-troncoso/profil/spieler/1207171" },
+    { "full_name": "Pablo Palacio", "age": 26, "nationality": "Argentina", "position": "FW", "shirt_number": null, "source_url": "https://www.transfermarkt.com/pablo-palacio/profil/spieler/655659" },
+    { "full_name": "Bayron Barrera", "age": 17, "nationality": "Chile", "position": "FW", "shirt_number": 24, "source_url": "https://www.transfermarkt.com/bayron-barrera/profil/spieler/1369245" },
+    { "full_name": "Dylan Arias", "age": 19, "nationality": "Chile", "position": "FW", "shirt_number": 19, "source_url": "https://www.transfermarkt.com/dylan-arias/profil/spieler/1274082" },
+    { "full_name": "Thomas Jones", "age": 29, "nationality": "Chile", "position": "FW", "shirt_number": 7, "source_url": "https://www.transfermarkt.com/thomas-jones/profil/spieler/439362" },
+    { "full_name": "César González", "age": 29, "nationality": "Chile", "position": "FW", "shirt_number": 17, "source_url": "https://www.transfermarkt.com/cesar-gonzalez/profil/spieler/365453" },
+    { "full_name": "Antony Henríquez", "age": 20, "nationality": "Chile", "position": "FW", "shirt_number": 27, "source_url": "https://www.transfermarkt.com/antony-henriquez/profil/spieler/1369246" },
+    { "full_name": "Álvaro Ramos", "age": 34, "nationality": "Chile", "position": "FW", "shirt_number": 11, "source_url": "https://www.transfermarkt.com/alvaro-ramos/profil/spieler/120431" },
+    { "full_name": "Isaac Díaz", "age": 36, "nationality": "Chile", "position": "FW", "shirt_number": 31, "source_url": "https://www.transfermarkt.com/isaac-diaz/profil/spieler/180039" }
+  ]
+}

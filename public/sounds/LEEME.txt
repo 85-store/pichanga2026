@@ -1,0 +1,24 @@
+Efectos de sonido de Pichanga 2026
+==================================
+
+El reproductor de efectos YA esta implementado y listo para usarlos (ver
+public/sfx.js): solo falta que agregues tus propios archivos de audio (que ya
+tengas licencia para usar) con estos nombres EXACTOS dentro de esta carpeta
+(public/sounds/):
+
+  goal.mp3             -> Gol (cuando tu equipo o el rival anota)
+  card.mp3             -> Tarjeta amarilla o roja
+  whistle.mp3          -> Silbato (inicio del partido, falta, penal convertido, final)
+  pifias.mp3           -> Pifias/abucheos de la hinchada (penal fallado, gol anulado por VAR).
+                          Se corta solo a ~1.8s aunque el archivo sea mas largo,
+                          para que sea un abucheo corto y no tape el partido.
+  click.mp3            -> Clic corto de interfaz (cualquier boton del juego)
+  crowd-ambience.mp3   -> Ambiente de estadio/hinchada, en loop durante el partido en vivo
+
+Si falta algun archivo, ese sonido simplemente no suena (no rompe el juego);
+en cuanto copies el archivo con el nombre correcto, empieza a sonar sin
+necesidad de tocar nada mas.
+
+Hay un boton 🔊/🔇 en la barra lateral (y en la pantalla de titulo, junto a
+la musica) para silenciar todos estos efectos de una vez; es independiente
+del reproductor de musica del menu.

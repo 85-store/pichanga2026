@@ -1,0 +1,196 @@
+{
+  "club": "Audax Italiano",
+  "source_url": "https://www.transfermarkt.es/audax-italiano/startseite/verein/6363",
+  "base_level": 1,
+  "players": [
+    {
+      "full_name": "Tomás Ahumada",
+      "birth_date": "2001-06-24",
+      "nationality": "Chile",
+      "position": "Portero",
+      "shirt_number": 1
+    },
+    {
+      "full_name": "Pedro Garrido",
+      "birth_date": "2003-10-29",
+      "nationality": "Chile",
+      "position": "Portero",
+      "shirt_number": 25
+    },
+    {
+      "full_name": "Enzo Ferrario",
+      "birth_date": "2000-03-03",
+      "nationality": "Chile",
+      "position": "Defensa",
+      "shirt_number": 13
+    },
+    {
+      "full_name": "Marcelo Ortiz",
+      "birth_date": "1994-01-13",
+      "nationality": "Argentina",
+      "position": "Defensa",
+      "shirt_number": 29
+    },
+    {
+      "full_name": "Cristóbal Muñoz",
+      "birth_date": "1999-10-11",
+      "nationality": "Chile",
+      "position": "Defensa",
+      "shirt_number": 5
+    },
+    {
+      "full_name": "Diego Monreal",
+      "birth_date": "2002-09-05",
+      "nationality": "Chile",
+      "position": "Defensa",
+      "shirt_number": 14
+    },
+    {
+      "full_name": "Oliver Rojas",
+      "birth_date": "2000-06-11",
+      "nationality": "Chile",
+      "position": "Defensa",
+      "shirt_number": 16
+    },
+    {
+      "full_name": "Raimundo Rebolledo",
+      "birth_date": "1997-05-14",
+      "nationality": "Chile",
+      "position": "Defensa",
+      "shirt_number": 35
+    },
+    {
+      "full_name": "Martín Jiménez",
+      "birth_date": "2008-02-06",
+      "nationality": "Chile",
+      "position": "Defensa",
+      "shirt_number": 20
+    },
+    {
+      "full_name": "Vicente Zenteno",
+      "birth_date": "2007-09-25",
+      "nationality": "Chile",
+      "position": "Mediocampista",
+      "shirt_number": 2
+    },
+    {
+      "full_name": "Bryan Soto",
+      "birth_date": "2001-06-01",
+      "nationality": "Chile",
+      "position": "Mediocampista",
+      "shirt_number": 32
+    },
+    {
+      "full_name": "Mario Sandoval",
+      "birth_date": "2007-08-07",
+      "nationality": "Chile",
+      "position": "Mediocampista",
+      "shirt_number": 6
+    },
+    {
+      "full_name": "Marco Collao",
+      "birth_date": "1998-04-11",
+      "nationality": "Chile",
+      "position": "Mediocampista",
+      "shirt_number": 8
+    },
+    {
+      "full_name": "Nicolás Orellana",
+      "birth_date": "1995-09-03",
+      "nationality": "Chile",
+      "position": "Mediocampista",
+      "shirt_number": 24
+    },
+    {
+      "full_name": "Federico Mateos",
+      "birth_date": "1993-03-28",
+      "nationality": "Argentina",
+      "position": "Mediocampista",
+      "shirt_number": 28
+    },
+    {
+      "full_name": "Nicolás Aedo",
+      "birth_date": "2001-04-06",
+      "nationality": "Chile",
+      "position": "Mediocampista",
+      "shirt_number": 18
+    },
+    {
+      "full_name": "Favian Loyola",
+      "birth_date": "2005-05-18",
+      "nationality": "Chile",
+      "position": "Mediocampista",
+      "shirt_number": 17
+    },
+    {
+      "full_name": "Michael Vadulli",
+      "birth_date": "1998-05-27",
+      "nationality": "Chile",
+      "position": "Delantero",
+      "shirt_number": 27
+    },
+    {
+      "full_name": "Paolo Guajardo",
+      "birth_date": "2003-05-27",
+      "nationality": "Chile",
+      "position": "Delantero",
+      "shirt_number": 7
+    },
+    {
+      "full_name": "Diego Coelho",
+      "birth_date": "1995-01-28",
+      "nationality": "Uruguay",
+      "position": "Delantero",
+      "shirt_number": 9
+    },
+    {
+      "full_name": "Franco Troyansky",
+      "birth_date": "1997-03-06",
+      "nationality": "Argentina",
+      "position": "Delantero",
+      "shirt_number": 11
+    },
+    {
+      "full_name": "Felipe Salomoni",
+      "age": 23,
+      "nationality": "Argentina",
+      "position": "Defensa",
+      "shirt_number": 3
+    },
+    {
+      "full_name": "César Pinares",
+      "age": 35,
+      "nationality": "Chile",
+      "position": "Mediocampista",
+      "shirt_number": 19
+    },
+    {
+      "full_name": "Rodrigo Cabral",
+      "age": 26,
+      "nationality": "Argentina",
+      "position": "Delantero",
+      "shirt_number": 10
+    },
+    {
+      "full_name": "Giovani Chiaverano",
+      "age": 21,
+      "nationality": "Argentina",
+      "position": "Delantero",
+      "shirt_number": 21
+    },
+    {
+      "full_name": "Ariel Uribe",
+      "age": 27,
+      "nationality": "Chile",
+      "position": "Delantero",
+      "shirt_number": 30
+    },
+    {
+      "full_name": "Damián Pizarro",
+      "age": 21,
+      "nationality": "Chile",
+      "position": "Delantero",
+      "shirt_number": 22
+    }
+  ]
+}

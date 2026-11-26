@@ -1,0 +1,21 @@
+Musica del menu de Pichanga 2026
+=================================
+
+No puedo descargar ni incluir estas canciones porque son obras con derechos de
+autor (de sus respectivos artistas/sellos), y distribuirlas aqui seria una
+infraccion de copyright. El reproductor del menu SI esta implementado y listo
+para usarlas: solo falta que agregues tus propios archivos de audio (que ya
+hayas comprado o tengas licencia para usar) con estos nombres EXACTOS dentro
+de esta carpeta (public/music/):
+
+  01-los-miserables-el-crack.mp3       -> Los Miserables - El Crack
+  02-el-baile-de-la-gambeta.mp3        -> El baile de la gambeta
+  03-ishowspeed-champions-wc2026.mp3   -> IShowSpeed - Champions WC2026
+  04-time-to-pretend.mp3               -> Time to Pretend
+  05-no-me-arrepiento-de-este-amor.mp3 -> No me arrepiento de este amor
+  06-yo-x-ti-tu-x-mi.mp3               -> Yo x ti, tu x mi
+
+El reproductor esta en la pantalla de titulo (menu principal): tiene boton de
+play/pausa, anterior/siguiente, y al terminar una cancion pasa automaticamente
+a la siguiente, volviendo a la primera cuando termina la lista. Si falta algun
+archivo, simplemente salta esa pista y sigue con la próxima.

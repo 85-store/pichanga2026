@@ -1,0 +1,33 @@
+{
+  "club": "Santiago Wanderers",
+  "source_url": "https://www.transfermarkt.com/santiago-wanderers/kader/verein/2723",
+  "base_level": 0,
+  "players": [
+    { "full_name": "Eduardo Miranda", "age": 34, "nationality": "Chile", "position": "GK", "shirt_number": 1 },
+    { "full_name": "Bayron Martínez", "age": 25, "nationality": "Chile", "position": "GK", "shirt_number": 36 },
+    { "full_name": "Raúl Olivares", "age": 38, "nationality": "Chile", "position": "GK", "shirt_number": 12 },
+    { "full_name": "Cristopher Valenzuela", "age": 19, "nationality": "Chile", "position": "DF", "shirt_number": 31 },
+    { "full_name": "Luis Margas", "age": 20, "nationality": "Chile", "position": "DF", "shirt_number": 3 },
+    { "full_name": "Víctor Espinoza", "age": 27, "nationality": "Chile", "position": "DF", "shirt_number": 4 },
+    { "full_name": "Sergio Felipe", "age": 35, "nationality": "Uruguay", "position": "DF", "shirt_number": 18 },
+    { "full_name": "Pedro Navarro", "age": 25, "nationality": "Chile", "position": "DF", "shirt_number": 16 },
+    { "full_name": "Alexander Dubó", "age": 19, "nationality": "Chile", "position": "DF", "shirt_number": 24 },
+    { "full_name": "Axel Herrera", "age": 25, "nationality": "Chile", "position": "DF", "shirt_number": 7 },
+    { "full_name": "Cristóbal Cáceres", "age": 30, "nationality": "Chile", "position": "MF", "shirt_number": 17 },
+    { "full_name": "Cristóbal Villarroel", "age": 19, "nationality": "Chile", "position": "MF", "shirt_number": 19 },
+    { "full_name": "Leandro Navarro", "age": 34, "nationality": "Argentina", "position": "MF", "shirt_number": 5 },
+    { "full_name": "Martín Villarroel", "age": 25, "nationality": "Chile", "position": "MF", "shirt_number": 15 },
+    { "full_name": "Joaquín Silva", "age": 21, "nationality": "Chile", "position": "MF", "shirt_number": 8 },
+    { "full_name": "Dylan Portilla", "age": 22, "nationality": "Chile", "position": "MF", "shirt_number": 38 },
+    { "full_name": "Lucas Avendaño", "age": 20, "nationality": "Chile", "position": "MF", "shirt_number": 20 },
+    { "full_name": "Cristóbal Ponce", "age": 20, "nationality": "Chile", "position": "MF", "shirt_number": 14 },
+    { "full_name": "Jorge Luna", "age": 39, "nationality": "Argentina", "position": "MF", "shirt_number": 10 },
+    { "full_name": "Denilson San Martín", "age": 18, "nationality": "Chile", "position": "FW", "shirt_number": 37 },
+    { "full_name": "Ignacio Flores", "age": 19, "nationality": "Chile", "position": "FW", "shirt_number": 23 },
+    { "full_name": "Vicente Vera", "age": 22, "nationality": "Chile", "position": "FW", "shirt_number": 27 },
+    { "full_name": "Vicente Vargas", "age": 19, "nationality": "Chile", "position": "FW", "shirt_number": 32 },
+    { "full_name": "Marcos Camarda", "age": 26, "nationality": "Uruguay", "position": "FW", "shirt_number": 9 },
+    { "full_name": "Christian Silva", "age": 18, "nationality": "Chile", "position": "FW", "shirt_number": 29 },
+    { "full_name": "Javier Parraguez", "age": 36, "nationality": "Chile", "position": "FW", "shirt_number": 22 }
+  ]
+}

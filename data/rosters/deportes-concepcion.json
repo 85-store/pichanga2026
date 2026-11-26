@@ -1,0 +1,196 @@
+{
+  "club": "Deportes Concepción",
+  "source_url": "https://www.transfermarkt.es/club-de-deportes-concepcion/startseite/verein/14604",
+  "base_level": 1,
+  "players": [
+    {
+      "full_name": "Nicolás Araya",
+      "birth_date": "1999-06-06",
+      "nationality": "Chile",
+      "position": "Portero",
+      "shirt_number": 25
+    },
+    {
+      "full_name": "Nery Veloso",
+      "birth_date": "1987-03-02",
+      "nationality": "Chile",
+      "position": "Portero",
+      "shirt_number": 12
+    },
+    {
+      "full_name": "Norman Rodríguez",
+      "birth_date": "1998-07-12",
+      "nationality": "Uruguay",
+      "position": "Defensa",
+      "shirt_number": 21
+    },
+    {
+      "full_name": "Diego Carrasco",
+      "birth_date": "1995-05-25",
+      "nationality": "Chile",
+      "position": "Defensa",
+      "shirt_number": 3
+    },
+    {
+      "full_name": "Fausto Grillo",
+      "birth_date": "1993-02-20",
+      "nationality": "Argentina",
+      "position": "Defensa",
+      "shirt_number": 37
+    },
+    {
+      "full_name": "Cristián Riquelme",
+      "birth_date": "2003-10-14",
+      "nationality": "Chile",
+      "position": "Defensa",
+      "shirt_number": 23
+    },
+    {
+      "full_name": "Dilan Varas",
+      "birth_date": "2005-04-01",
+      "nationality": "Chile",
+      "position": "Defensa",
+      "shirt_number": 29
+    },
+    {
+      "full_name": "Brayan Véjar",
+      "birth_date": "1995-07-14",
+      "nationality": "Chile",
+      "position": "Defensa",
+      "shirt_number": 11
+    },
+    {
+      "full_name": "Ariel Cáceres",
+      "birth_date": "1999-11-21",
+      "nationality": "Chile",
+      "position": "Defensa",
+      "shirt_number": 4
+    },
+    {
+      "full_name": "Fernando Martínez",
+      "birth_date": "1994-05-13",
+      "nationality": "Paraguay",
+      "position": "Mediocampista",
+      "shirt_number": 8
+    },
+    {
+      "full_name": "Yonatan Rodríguez",
+      "birth_date": "1993-07-01",
+      "nationality": "Uruguay",
+      "position": "Mediocampista",
+      "shirt_number": 18
+    },
+    {
+      "full_name": "Sebastián Martínez",
+      "birth_date": "1993-06-06",
+      "nationality": "Chile",
+      "position": "Mediocampista",
+      "shirt_number": 14
+    },
+    {
+      "full_name": "Misael Dávila",
+      "birth_date": "1991-07-17",
+      "nationality": "Chile",
+      "position": "Mediocampista",
+      "shirt_number": 22
+    },
+    {
+      "full_name": "Fabrizio Manzo",
+      "birth_date": "1998-08-11",
+      "nationality": "Chile",
+      "position": "Mediocampista",
+      "shirt_number": null
+    },
+    {
+      "full_name": "Mario Sandoval",
+      "birth_date": "1991-07-24",
+      "nationality": "Chile",
+      "position": "Mediocampista",
+      "shirt_number": 16
+    },
+    {
+      "full_name": "Jorge Henríquez",
+      "birth_date": "1994-06-17",
+      "nationality": "Chile",
+      "position": "Mediocampista",
+      "shirt_number": 20
+    },
+    {
+      "full_name": "Leenhan Romero",
+      "birth_date": "2006-11-01",
+      "nationality": "Venezuela",
+      "position": "Mediocampista",
+      "shirt_number": 26
+    },
+    {
+      "full_name": "Ethan Espinoza",
+      "birth_date": "2001-01-17",
+      "nationality": "Chile",
+      "position": "Delantero",
+      "shirt_number": 30
+    },
+    {
+      "full_name": "Joaquín Montecinos",
+      "birth_date": "1995-12-07",
+      "nationality": "Chile",
+      "position": "Delantero",
+      "shirt_number": 15
+    },
+    {
+      "full_name": "Aldrix Jara",
+      "birth_date": "2000-09-08",
+      "nationality": "Chile",
+      "position": "Delantero",
+      "shirt_number": 19
+    },
+    {
+      "full_name": "Matías Cavalleri",
+      "birth_date": "1998-04-08",
+      "nationality": "Chile",
+      "position": "Delantero",
+      "shirt_number": 24
+    },
+    {
+      "full_name": "Bastián Escobar",
+      "birth_date": "2006-02-18",
+      "nationality": "Chile",
+      "position": "Delantero",
+      "shirt_number": 39
+    },
+    {
+      "full_name": "Cristóbal Zambrano",
+      "birth_date": "2008-06-28",
+      "nationality": "Chile",
+      "position": "Delantero",
+      "shirt_number": 17
+    },
+    {
+      "full_name": "Fernando Romero",
+      "birth_date": "2000-04-24",
+      "nationality": "Paraguay",
+      "position": "Delantero",
+      "shirt_number": 7
+    },
+    {
+      "full_name": "Diego Acosta",
+      "birth_date": "2002-11-12",
+      "nationality": "Paraguay",
+      "position": "Delantero",
+      "shirt_number": 27
+    },
+    {
+      "full_name": "Carlos Escobar",
+      "birth_date": "1989-12-24",
+      "nationality": "Chile",
+      "position": "Delantero",
+      "shirt_number": 9
+    },
+    {
+      "full_name": "Joaquín Larrivey",
+      "birth_date": "1984-08-20",
+      "nationality": "Argentina",
+      "position": "Delantero",
+      "shirt_number": 32
+    }
+  ]
+}

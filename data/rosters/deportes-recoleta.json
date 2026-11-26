@@ -1,0 +1,30 @@
+{
+  "club": "Deportes Recoleta",
+  "source_url": "https://www.transfermarkt.com/deportes-recoleta/kader/verein/61808",
+  "base_level": 0,
+  "players": [
+    { "full_name": "Jaime Vargas", "age": 22, "nationality": "Chile", "position": "GK", "shirt_number": 22, "source_url": "https://www.transfermarkt.com/jaime-vargas/profil/spieler/1002042" },
+    { "full_name": "Álvaro Salazar", "age": 33, "nationality": "Chile", "position": "GK", "shirt_number": 23, "source_url": "https://www.transfermarkt.com/alvaro-salazar/profil/spieler/249261" },
+    { "full_name": "José Narr", "age": 23, "nationality": "Chile", "position": "GK", "shirt_number": 13, "source_url": "https://www.transfermarkt.com/jose-narr/profil/spieler/1041288" },
+    { "full_name": "Brayams Viveros", "age": 34, "nationality": "Chile", "position": "DF", "shirt_number": 16, "source_url": "https://www.transfermarkt.com/brayams-viveros/profil/spieler/271218" },
+    { "full_name": "Fabrizio Tomarelli", "age": 25, "nationality": "Chile", "position": "DF", "shirt_number": 4, "source_url": "https://www.transfermarkt.com/fabrizio-tomarelli/profil/spieler/880478" },
+    { "full_name": "Francisco Alarcón", "age": 36, "nationality": "Chile", "position": "DF", "shirt_number": 5, "source_url": "https://www.transfermarkt.com/francisco-alarcon/profil/spieler/160899" },
+    { "full_name": "Christian Cepeda", "age": 35, "nationality": "Argentina", "position": "DF", "shirt_number": 18, "source_url": "https://www.transfermarkt.com/christian-cepeda/profil/spieler/267673" },
+    { "full_name": "Ignacio Lara", "age": 30, "nationality": "Chile", "position": "DF", "shirt_number": 14, "source_url": "https://www.transfermarkt.com/ignacio-lara/profil/spieler/453811" },
+    { "full_name": "Nicolás Arismendy", "age": 21, "nationality": "Chile", "position": "DF", "shirt_number": 3, "source_url": "https://www.transfermarkt.com/nicolas-arismendy/profil/spieler/1509771" },
+    { "full_name": "Daniel Viveros", "age": 25, "nationality": "Chile", "position": "DF", "shirt_number": 11, "source_url": "https://www.transfermarkt.com/daniel-viveros/profil/spieler/586686" },
+    { "full_name": "Camilo Rodríguez", "age": 31, "nationality": "Chile", "position": "DF", "shirt_number": 28, "source_url": "https://www.transfermarkt.com/camilo-rodriguez/profil/spieler/319480" },
+    { "full_name": "Federico Martin", "age": 35, "nationality": "Argentina", "position": "MF", "shirt_number": 8, "source_url": "https://www.transfermarkt.com/federico-martin/profil/spieler/562439" },
+    { "full_name": "Branco Provoste", "age": 26, "nationality": "Chile", "position": "MF", "shirt_number": 7, "source_url": "https://www.transfermarkt.com/branco-provoste/profil/spieler/461622" },
+    { "full_name": "Nicolás Carvajal", "age": 29, "nationality": "Chile", "position": "MF", "shirt_number": 17, "source_url": "https://www.transfermarkt.com/nicolas-carvajal/profil/spieler/534291" },
+    { "full_name": "Javier Espinoza", "age": 21, "nationality": "Chile", "position": "MF", "shirt_number": 6, "source_url": "https://www.transfermarkt.com/javier-espinoza/profil/spieler/1388370" },
+    { "full_name": "Felipe Báez", "age": 35, "nationality": "Chile", "position": "MF", "shirt_number": 15, "source_url": "https://www.transfermarkt.com/felipe-baez/profil/spieler/843072" },
+    { "full_name": "Mikel Arguinarena", "age": 35, "nationality": "Chile", "position": "MF", "shirt_number": 10, "source_url": "https://www.transfermarkt.com/mikel-arguinarena/profil/spieler/370809" },
+    { "full_name": "Gonzalo Álvarez", "age": 29, "nationality": "Chile", "position": "FW", "shirt_number": 21, "source_url": "https://www.transfermarkt.com/gonzalo-alvarez/profil/spieler/533444" },
+    { "full_name": "Carlos González", "age": 24, "nationality": "Chile", "position": "FW", "shirt_number": 20, "source_url": "https://www.transfermarkt.com/carlos-gonzalez/profil/spieler/1108729" },
+    { "full_name": "Pedro Sánchez", "age": 28, "nationality": "Chile", "position": "FW", "shirt_number": 19, "source_url": "https://www.transfermarkt.com/pedro-sanchez/profil/spieler/525162" },
+    { "full_name": "Roberto Riveros", "age": 30, "nationality": "Chile", "position": "FW", "shirt_number": 33, "source_url": "https://www.transfermarkt.com/roberto-riveros/profil/spieler/342205" },
+    { "full_name": "Germán Estigarribia", "age": 29, "nationality": "Argentina", "position": "FW", "shirt_number": 9, "source_url": "https://www.transfermarkt.com/german-estigarribia/profil/spieler/526865" },
+    { "full_name": "Felipe Flores", "age": 39, "nationality": "Chile", "position": "FW", "shirt_number": 27, "source_url": "https://www.transfermarkt.com/felipe-flores/profil/spieler/80736" }
+  ]
+}
