@@ -2,7 +2,12 @@
 // (header "Authorization: Bearer <token>") y deja el uid del usuario en
 // req.uid. No hay sesiones de servidor: el token lo valida Firebase Admin en
 // cada pedido (stateless, apto para serverless/Vercel).
-const admin = require('firebase-admin');
+//
+// firebase-admin@14 cambio a la API modular (initializeApp/cert desde
+// 'firebase-admin/app', getAuth desde 'firebase-admin/auth'); ya no existe
+// el namespace viejo admin.credential/admin.auth() del paquete raiz.
+const { initializeApp, cert } = require('firebase-admin/app');
+const { getAuth } = require('firebase-admin/auth');
 
 let app = null;
 
@@ -18,8 +23,8 @@ function getFirebaseApp() {
       'Faltan credenciales de Firebase Admin (FIREBASE_PROJECT_ID / FIREBASE_CLIENT_EMAIL / FIREBASE_PRIVATE_KEY) en el entorno.'
     );
   }
-  app = admin.initializeApp({
-    credential: admin.credential.cert({ projectId, clientEmail, privateKey }),
+  app = initializeApp({
+    credential: cert({ projectId, clientEmail, privateKey }),
   });
   return app;
 }
@@ -34,10 +39,14 @@ function requireAuth() {
       const match = header.match(/^Bearer (.+)$/);
       if (!match) return res.status(401).json({ error: 'Falta el token de autenticación.' });
 
-      const decoded = await admin.auth(getFirebaseApp()).verifyIdToken(match[1]);
+      const decoded = await getAuth(getFirebaseApp()).verifyIdToken(match[1]);
       req.uid = decoded.uid;
       next();
     } catch (err) {
+      // Se loguea el motivo real server-side (puede ser un token vencido,
+      // pero tambien un error de configuracion del SDK) sin exponerlo al
+      // cliente, que siempre recibe el mismo 401 generico.
+      console.error('requireAuth:', err.message);
       res.status(401).json({ error: 'Token de autenticación inválido o expirado.' });
     }
   };
