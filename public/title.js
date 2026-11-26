@@ -275,12 +275,17 @@ async function openEditProfileModal() {
   backdrop.innerHTML = `
     <div class="title-modal" style="width:340px;">
       <h2>Mis datos</h2>
+      <label class="field-label">Correo</label>
+      <input type="email" id="edit-email" disabled style="opacity:0.6; cursor:not-allowed;" />
       <label class="field-label">Nombres</label>
       <input type="text" id="edit-nombres" />
       <label class="field-label">Apellidos</label>
       <input type="text" id="edit-apellidos" />
       <label class="field-label">Teléfono</label>
-      <input type="tel" id="edit-telefono" />
+      <div style="display:flex; gap:6px;">
+        <span style="background:var(--panel-2); border:1px solid var(--border); color:var(--text); padding:8px 10px; border-radius:8px; font-size:13px;">+56</span>
+        <input type="tel" id="edit-telefono" style="flex:1;" />
+      </div>
       <label class="field-label">TikTok (opcional)</label>
       <input type="text" id="edit-tiktok" placeholder="@usuario" />
       <label class="field-label">Instagram (opcional)</label>
@@ -325,10 +330,11 @@ async function openEditProfileModal() {
   favSel.innerHTML = `<option value="">Elegí un equipo</option>${optionsHtml}`;
   rivalSel.innerHTML = `<option value="">Elegí un equipo</option>${optionsHtml}`;
 
+  document.getElementById('edit-email').value = (window.getCurrentUser() && window.getCurrentUser().email) || '';
   if (profile) {
     document.getElementById('edit-nombres').value = profile.nombres || '';
     document.getElementById('edit-apellidos').value = profile.apellidos || '';
-    document.getElementById('edit-telefono').value = profile.telefono || '';
+    document.getElementById('edit-telefono').value = (profile.telefono || '').replace(/^\+56\s?/, '');
     document.getElementById('edit-tiktok').value = profile.tiktok || '';
     document.getElementById('edit-instagram').value = profile.instagram || '';
     if (profile.equipo_favorito_id) favSel.value = String(profile.equipo_favorito_id);
@@ -342,7 +348,8 @@ async function openEditProfileModal() {
   document.getElementById('edit-profile-save-btn').addEventListener('click', async () => {
     const nombres = document.getElementById('edit-nombres').value.trim();
     const apellidos = document.getElementById('edit-apellidos').value.trim();
-    const telefono = document.getElementById('edit-telefono').value.trim();
+    const telefonoRaw = document.getElementById('edit-telefono').value.trim();
+    const telefono = telefonoRaw ? `+56${telefonoRaw}` : '';
     const tiktok = document.getElementById('edit-tiktok').value.trim();
     const instagram = document.getElementById('edit-instagram').value.trim();
     const equipoFavoritoId = favSel.value;

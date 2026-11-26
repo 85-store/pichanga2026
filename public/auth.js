@@ -136,7 +136,10 @@ function renderRegisterStep1() {
        <label class="field-label">Correo</label>
        <input type="email" id="reg-email" autocomplete="email" />
        <label class="field-label">Teléfono</label>
-       <input type="tel" id="reg-telefono" autocomplete="tel" />
+       <div style="display:flex; gap:6px;">
+         <span style="background:var(--panel-2); border:1px solid var(--border); color:var(--text); padding:8px 10px; border-radius:8px; font-size:13px;">+56</span>
+         <input type="tel" id="reg-telefono" autocomplete="tel" style="flex:1;" />
+       </div>
        <label class="field-label">TikTok (opcional)</label>
        <input type="text" id="reg-tiktok" placeholder="@usuario" />
        <label class="field-label">Instagram (opcional)</label>
@@ -164,7 +167,8 @@ function renderRegisterStep1() {
     const nombres = document.getElementById('reg-nombres').value.trim();
     const apellidos = document.getElementById('reg-apellidos').value.trim();
     const email = document.getElementById('reg-email').value.trim();
-    const telefono = document.getElementById('reg-telefono').value.trim();
+    const telefonoRaw = document.getElementById('reg-telefono').value.trim();
+    const telefono = telefonoRaw ? `+56${telefonoRaw}` : '';
     const tiktok = document.getElementById('reg-tiktok').value.trim();
     const instagram = document.getElementById('reg-instagram').value.trim();
     const password = document.getElementById('reg-password').value;
