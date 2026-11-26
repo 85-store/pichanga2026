@@ -24,7 +24,7 @@ const { getSuperCopa, isSuperCopaPending, playSuperCopaIfPending } = require('..
 const { getCareer, getPendingOffers, acceptOffer, declineOffer } = require('../engine/board');
 const { listIdentities, setTeamIdentity } = require('../engine/team-identity');
 const { getSavedLineup, saveLineup } = require('../engine/tactics');
-const { getNextManagedMatch } = require('../engine/next-match');
+const { getNextManagedMatch, getUpcomingCalendar } = require('../engine/next-match');
 const { getPendingEvents, getEventHistory, resolveEvent } = require('../engine/career-events');
 const { onSigningCompletedMedia, getComments, listPersonas } = require('../engine/media');
 const {
@@ -391,6 +391,15 @@ function buildApiRouter() {
     try {
       const db = req.db;
       res.json(await getNextManagedMatch(db));
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  router.get('/calendar', async (req, res) => {
+    try {
+      const db = req.db;
+      res.json(await getUpcomingCalendar(db));
     } catch (err) {
       res.status(500).json({ error: err.message });
     }

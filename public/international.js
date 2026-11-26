@@ -57,12 +57,13 @@ function clgKnockoutMatchHtml(m, label) {
 }
 
 async function renderCopaLigaView() {
-  mainView.innerHTML = '<div class="empty-state">Cargando…</div>';
+  mainView.innerHTML = partidosTabBarHtml('copa-liga') + '<div class="empty-state">Cargando…</div>';
   try {
     const data = await api('/copa-liga');
     renderCopaLigaData(data);
   } catch (e) {
-    mainView.innerHTML = `<div class="empty-state">Error al cargar la Copa de la Liga: ${escapeHtml(e.message)}</div>`;
+    mainView.innerHTML = partidosTabBarHtml('copa-liga') + `<div class="empty-state">Error al cargar la Copa de la Liga: ${escapeHtml(e.message)}</div>`;
+    wirePartidosTabBar();
   }
 }
 
@@ -71,8 +72,10 @@ function renderCopaLigaData(data) {
 
   if (!groups.length) {
     mainView.innerHTML = `
+      ${partidosTabBarHtml('copa-liga')}
       <div class="view-header"><div><h1>🏆 Copa de la Liga</h1><div class="sub">Temporada ${seasonYear}</div></div></div>
       <div class="empty-state">El sorteo de grupos todavía no se ha generado para esta temporada.</div>`;
+    wirePartidosTabBar();
     return;
   }
 
@@ -103,6 +106,7 @@ function renderCopaLigaData(data) {
       : '<span class="badge-complete">Copa de la Liga completa ✓</span>';
 
   mainView.innerHTML = `
+    ${partidosTabBarHtml('copa-liga')}
     <div class="view-header">
       <div>
         <h1>🏆 Copa de la Liga</h1>
@@ -113,6 +117,7 @@ function renderCopaLigaData(data) {
     <div class="copa-liga-groups">${groups.map(clgGroupTableHtml).join('')}</div>
     <div class="copa-bracket">${semisHtml}${finalHtml}</div>`;
 
+  wirePartidosTabBar();
   const btn = document.getElementById('sim-copa-liga-btn');
   if (btn) {
     btn.addEventListener('click', async () => {

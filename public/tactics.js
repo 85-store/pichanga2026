@@ -24,7 +24,7 @@ async function renderNextMatchModule() {
   if (!box) return;
   box.innerHTML = '<div class="label">Próximo partido</div><div class="empty-state small">Cargando…</div>';
   try {
-    const res = await fetch('/api/next-match');
+    const res = await window.apiFetch('/api/next-match');
     const data = res.ok ? await res.json() : null;
     if (!data) {
       box.innerHTML = '<div class="label">Próximo partido</div><div class="empty-state small">No tienes partidos pendientes por ahora.</div>';
@@ -59,7 +59,7 @@ async function renderFormationModule() {
   if (!box) return;
   box.innerHTML = '<div class="label">Formación</div><div class="empty-state small">Cargando…</div>';
   try {
-    const res = await fetch('/api/tactics');
+    const res = await window.apiFetch('/api/tactics');
     if (!res.ok) {
       box.innerHTML = '';
       return;
@@ -281,7 +281,7 @@ function openTacticsEditor(data) {
     saveBtn.disabled = true;
     saveBtn.textContent = 'Guardando…';
     try {
-      await fetch('/api/tactics', {
+      await window.apiFetch('/api/tactics', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ formation: ed.formation, playerIds: ids }),

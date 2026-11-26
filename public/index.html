@@ -19,11 +19,7 @@
       </div>
       <div id="career-box"></div>
       <div class="comp-nav">
-        <button class="comp-link" data-view="league-a">🏆 Liga Primera A</button>
-        <button class="comp-link" data-view="league-b">🏆 Liga Primera B</button>
-        <button class="comp-link" data-view="copa">🏅 Copa Chile</button>
-        <button class="comp-link" data-view="copa-liga">🏆 Copa de la Liga</button>
-        <button class="comp-link" data-view="supercopa">⭐ Supercopa</button>
+        <button class="comp-link" data-view="partidos">⚽ Partidos</button>
         <button class="comp-link" data-view="international">🌎 Copas Internacionales</button>
         <button class="comp-link" data-view="market">💰 Mercado de pases</button>
         <button class="comp-link" data-view="medios">📺 Medios</button>
@@ -38,11 +34,17 @@
     </aside>
   </div>
 
+  <div id="auth-root"></div>
   <div id="title-root"></div>
   <div id="modal-root"></div>
   <div id="match-root"></div>
   <div id="tactics-root"></div>
 
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+  <script src="firebase-config.js"></script>
+  <script src="api-client.js"></script>
+  <script src="auth.js"></script>
   <script src="sfx.js"></script>
   <script src="formations.js"></script>
   <script src="app.js"></script>

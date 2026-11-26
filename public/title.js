@@ -152,7 +152,7 @@ window.resumeGameMusicAfterMatch = function resumeGameMusicAfterMatch() {
 };
 
 async function titleApi(path, opts) {
-  const res = await fetch('/api/saves' + path, opts);
+  const res = await window.apiFetch('/api/saves' + path, opts);
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || res.statusText);
   return data;
@@ -223,7 +223,10 @@ function renderTitleScreen() {
     </div>`;
   renderTitleBackground();
 
-  document.getElementById('title-continue').addEventListener('click', onContinue);
+  // No existe mas un "continuar" implicito: desde la Fase 2 cada usuario tiene
+  // varios huecos propios (ya no una unica partida global), asi que "Continuar"
+  // hace lo mismo que "Cargar" - elegir cual.
+  document.getElementById('title-continue').addEventListener('click', () => openSlotPicker('load'));
   document.getElementById('title-load').addEventListener('click', () => openSlotPicker('load'));
   document.getElementById('title-new').addEventListener('click', () => openSlotPicker('new'));
 
@@ -236,15 +239,6 @@ function renderTitleScreen() {
   document.getElementById('music-next-btn').addEventListener('click', nextMenuTrack);
   document.querySelector('.music-bar .sfx-toggle-btn').addEventListener('click', () => { if (window.toggleSfx) window.toggleSfx(); });
   if (window.refreshSfxButtons) window.refreshSfxButtons();
-}
-
-async function onContinue() {
-  try {
-    await titleApi('/continue', { method: 'POST' });
-    enterGame();
-  } catch (e) {
-    alert('No se pudo continuar: ' + e.message);
-  }
 }
 
 async function openSlotPicker(mode) {
@@ -316,6 +310,7 @@ async function openSlotPicker(mode) {
 async function loadSlot(slot, backdrop) {
   try {
     await titleApi(`/${slot}/load`, { method: 'POST' });
+    window.currentSlot = slot;
     window.closeModal(backdrop, enterGame);
   } catch (e) {
     alert('No se pudo cargar la partida: ' + e.message);
@@ -367,6 +362,7 @@ async function openNewGameModal(slot, slotInfo) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ clubId, managerName }),
       });
+      window.currentSlot = slot;
       window.closeModal(backdrop, enterGame);
     } catch (e) {
       alert('No se pudo crear la partida: ' + e.message);
@@ -424,4 +420,9 @@ function enterGame() {
   window.startGame();
 }
 
-renderTitleScreen();
+// No tiene sentido mostrar el titulo (y menos pegarle a /api/saves) antes de
+// que haya una sesion de Firebase: se espera a que haya login, lo que tambien
+// cubre loguearse recien despues de que esta pagina ya cargo.
+window.onAuthStateChange((user) => {
+  if (user) renderTitleScreen();
+});

@@ -101,6 +101,36 @@ button.advance-btn:disabled { opacity: 0.6; cursor: wait; }
 .comp-link:hover { filter: brightness(1.1); }
 .comp-link.active { border-color: var(--accent); color: var(--accent); }
 
+/* ---- Sección "Partidos": pestañas Calendario/Liga/Copa Chile/Copa de la
+   Liga/Supercopa, para jugar las 4 competiciones nacionales desde un solo
+   link del sidebar en vez de saltar de sección en sección. ---- */
+.partidos-tabbar { display: flex; gap: 8px; margin-bottom: 18px; flex-wrap: wrap; }
+.partidos-tab {
+  background: var(--panel-2); border: 1px solid var(--border); color: var(--text-dim);
+  padding: 7px 12px; border-radius: 20px; font-size: 12.5px; font-weight: 600; cursor: pointer;
+}
+.partidos-tab:hover { color: var(--text); }
+.partidos-tab.active { border-color: var(--accent); color: var(--accent); background: var(--panel); }
+
+.division-switch { display: flex; gap: 6px; margin-left: auto; }
+.division-switch-btn {
+  background: var(--panel-2); border: 1px solid var(--border); color: var(--text-dim);
+  padding: 6px 10px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer;
+}
+.division-switch-btn.active { border-color: var(--accent); color: var(--accent); }
+
+.partidos-calendar-layout { display: flex; gap: 20px; align-items: flex-start; }
+.partidos-calendar-col { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+.partidos-formation-col { width: 280px; flex-shrink: 0; }
+
+.calendar-entry { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; }
+.calendar-entry.next { border-color: var(--accent); }
+.calendar-entry-head { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 6px; }
+.calendar-entry .fixture-row { border-bottom: none; padding: 4px 0; }
+.calendar-entry .fx-score { font-size: 11px; color: var(--text-dim); font-weight: 600; }
+.calendar-entry-foot { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; }
+.calendar-entry-date { font-size: 12px; color: var(--text-dim); }
+
 .view-toolbar { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
 .view-toolbar select {
   background: var(--panel-2); color: var(--text); border: 1px solid var(--border);

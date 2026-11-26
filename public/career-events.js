@@ -10,7 +10,7 @@ let ceQueue = [];
 let ceShowing = false;
 
 async function ceApi(path, opts) {
-  const res = await fetch('/api' + path, opts);
+  const res = await window.apiFetch('/api' + path, opts);
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || 'Error de red');
   return data;

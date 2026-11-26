@@ -86,7 +86,7 @@ function pitchFieldLinesMarkup() {
 let mx = null;
 
 async function matchApi(kind, id, path, opts) {
-  const res = await fetch(`/api/match/${kind}/${id}${path}`, opts);
+  const res = await window.apiFetch(`/api/match/${kind}/${id}${path}`, opts);
   if (!res.ok) throw new Error((await res.json()).error || res.statusText);
   return res.json();
 }
@@ -120,7 +120,7 @@ window.openMatchViewer = async function openMatchViewer(kind, id) {
     const roster = await matchApi(kind, id, '/roster');
     let saved = null;
     try {
-      const tactics = await fetch('/api/tactics').then((r) => (r.ok ? r.json() : null));
+      const tactics = await window.apiFetch('/api/tactics').then((r) => (r.ok ? r.json() : null));
       saved = tactics ? tactics.saved : null;
     } catch {
       // sin preferencia guardada, se usa la seleccion automatica de siempre.

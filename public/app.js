@@ -51,7 +51,7 @@ function setActiveComp(view) {
 }
 
 async function api(path, opts) {
-  const res = await fetch('/api' + path, opts);
+  const res = await window.apiFetch('/api' + path, opts);
   if (!res.ok) throw new Error((await res.json()).error || res.statusText);
   return res.json();
 }
@@ -542,8 +542,9 @@ function standingsRowClass(idx, total, s) {
 }
 
 async function renderLeagueView(division) {
+  state.partidosLeagueDivision = division;
   const divKey = division === 'Primera B' ? 'b' : 'a';
-  mainView.innerHTML = '<div class="empty-state">Cargando…</div>';
+  mainView.innerHTML = partidosTabBarHtml('liga') + '<div class="empty-state">Cargando…</div>';
   const data = await api(`/league/${divKey}`);
   renderLeagueData(data);
 }
@@ -625,10 +626,15 @@ function renderLeagueData(data) {
     .join('');
 
   mainView.innerHTML = `
+    ${partidosTabBarHtml('liga')}
     <div class="view-header">
       <div>
         <h1>🏆 ${escapeHtml(division)}</h1>
         <div class="sub">Temporada ${seasonYear} · Jornada ${nextJornada ? nextJornada : total} de ${total}</div>
+      </div>
+      <div class="division-switch">
+        <button class="division-switch-btn ${division === 'Primera A' ? 'active' : ''}" data-division="Primera A">Primera A</button>
+        <button class="division-switch-btn ${division === 'Primera B' ? 'active' : ''}" data-division="Primera B">Primera B</button>
       </div>
     </div>
     <div class="view-toolbar">
@@ -659,6 +665,11 @@ function renderLeagueData(data) {
     renderLeagueData(data);
   });
 
+  wirePartidosTabBar();
+  mainView.querySelectorAll('.division-switch-btn').forEach((btn) => {
+    btn.addEventListener('click', () => renderLeagueView(btn.dataset.division));
+  });
+
   const simBtn = document.getElementById('sim-jornada-btn');
   if (simBtn) {
     simBtn.addEventListener('click', async () => {
@@ -677,7 +688,7 @@ function renderLeagueData(data) {
 }
 
 async function renderCopaView() {
-  mainView.innerHTML = '<div class="empty-state">Cargando…</div>';
+  mainView.innerHTML = partidosTabBarHtml('copa') + '<div class="empty-state">Cargando…</div>';
   const data = await api('/copa');
   renderCopaData(data);
 }
@@ -710,6 +721,7 @@ function renderCopaData(data) {
     .join('');
 
   mainView.innerHTML = `
+    ${partidosTabBarHtml('copa')}
     <div class="view-header">
       <div>
         <h1>🏅 Copa Chile</h1>
@@ -725,6 +737,7 @@ function renderCopaData(data) {
     </div>
     <div class="copa-bracket">${bracketHtml}</div>`;
 
+  wirePartidosTabBar();
   const simBtn = document.getElementById('sim-copa-btn');
   if (simBtn) {
     simBtn.addEventListener('click', async () => {
@@ -743,7 +756,7 @@ function renderCopaData(data) {
 }
 
 async function renderSuperCopaView() {
-  mainView.innerHTML = '<div class="empty-state">Cargando…</div>';
+  mainView.innerHTML = partidosTabBarHtml('supercopa') + '<div class="empty-state">Cargando…</div>';
   const data = await api('/super-copa');
   renderSuperCopaData(data);
 }
@@ -753,17 +766,21 @@ function renderSuperCopaData(data) {
 
   if (!match) {
     mainView.innerHTML = `
+      ${partidosTabBarHtml('supercopa')}
       <div class="view-header"><div><h1>⭐ Supercopa</h1><div class="sub">Temporada ${seasonYear}</div></div></div>
       <div class="empty-state">La Supercopa de esta temporada todavía no está definida (se juega una vez que haya
       campeón de Primera A y de Copa Chile de la temporada anterior).</div>`;
+    wirePartidosTabBar();
     return;
   }
 
   if (match.skipped_reason) {
     mainView.innerHTML = `
+      ${partidosTabBarHtml('supercopa')}
       <div class="view-header"><div><h1>⭐ Supercopa</h1><div class="sub">Temporada ${seasonYear}</div></div></div>
       <div class="empty-state">Se omitió la Supercopa: ${escapeHtml(match.home_name)} ganó tanto la liga como la
       Copa Chile la temporada anterior.</div>`;
+    wirePartidosTabBar();
     return;
   }
 
@@ -772,6 +789,7 @@ function renderSuperCopaData(data) {
   const canWatch = !match.played && (isManagedClub(match.home_club_id) || isManagedClub(match.away_club_id));
 
   mainView.innerHTML = `
+    ${partidosTabBarHtml('supercopa')}
     <div class="view-header"><div><h1>⭐ Supercopa</h1><div class="sub">Temporada ${seasonYear}${match.played ? ' · Campeón: ' + escapeHtml(match.winner_name) : ''}</div></div></div>
     <div class="copa-bracket">
       <div class="copa-round">
@@ -786,6 +804,7 @@ function renderSuperCopaData(data) {
       </div>
     </div>`;
 
+  wirePartidosTabBar();
   const simBtn = document.getElementById('sim-supercopa-btn');
   if (simBtn) {
     simBtn.addEventListener('click', async () => {
@@ -1113,16 +1132,120 @@ compLinks.forEach((el) => {
   el.addEventListener('click', () => {
     const view = el.dataset.view;
     setActiveComp(view);
-    if (view === 'league-a') renderLeagueView('Primera A');
-    else if (view === 'league-b') renderLeagueView('Primera B');
-    else if (view === 'copa') renderCopaView();
-    else if (view === 'copa-liga') renderCopaLigaView();
-    else if (view === 'supercopa') renderSuperCopaView();
+    if (view === 'partidos') renderPartidosView(state.partidosTab);
     else if (view === 'international') renderInternationalView();
     else if (view === 'market') renderMarketView();
     else if (view === 'medios') renderMediosView();
   });
 });
+
+// ---- Seccion "Partidos": calendario unificado + Liga/Copa Chile/Copa de la
+// Liga/Supercopa como pestañas de una sola vista, en vez de 5 links aparte en
+// el sidebar. Las 4 competiciones nacionales se juegan desde el calendario,
+// asi se avanza progresivamente sin tener que andar saltando de sección en
+// sección para encontrar el próximo partido pendiente.
+const PARTIDOS_TABS = [
+  { key: 'calendario', label: '📅 Calendario' },
+  { key: 'liga', label: '🏆 Liga' },
+  { key: 'copa', label: '🏅 Copa Chile' },
+  { key: 'copa-liga', label: '🏆 Copa de la Liga' },
+  { key: 'supercopa', label: '⭐ Supercopa' },
+];
+
+function partidosTabBarHtml(active) {
+  return `
+    <div class="partidos-tabbar">
+      ${PARTIDOS_TABS.map((t) => `<button class="partidos-tab ${t.key === active ? 'active' : ''}" data-partidos-tab="${t.key}">${t.label}</button>`).join('')}
+    </div>`;
+}
+
+function wirePartidosTabBar() {
+  mainView.querySelectorAll('.partidos-tab').forEach((btn) => {
+    btn.addEventListener('click', () => renderPartidosView(btn.dataset.partidosTab));
+  });
+}
+
+function renderPartidosView(tab) {
+  state.partidosTab = tab || state.partidosTab || 'calendario';
+  if (state.partidosTab === 'liga') {
+    renderLeagueView(state.partidosLeagueDivision || (state.career && state.career.club_division) || 'Primera A');
+  } else if (state.partidosTab === 'copa') {
+    renderCopaView();
+  } else if (state.partidosTab === 'copa-liga') {
+    renderCopaLigaView();
+  } else if (state.partidosTab === 'supercopa') {
+    renderSuperCopaView();
+  } else {
+    state.partidosTab = 'calendario';
+    renderCalendarTab();
+  }
+}
+
+function calendarEntryHtml(entry) {
+  return `
+    <div class="calendar-entry ${entry.canWatch ? 'next' : 'pending'}">
+      <div class="calendar-entry-head">
+        <span class="calendar-entry-comp">${escapeHtml(entry.competition)}</span>
+        <span class="calendar-entry-round">${escapeHtml(entry.roundLabel)}</span>
+      </div>
+      <div class="fixture-row">
+        <div class="fx-team">${crestImg(entry.myClub, 22)} ${escapeHtml(entry.myClub.short_name || entry.myClub.name)}</div>
+        <div class="fx-score">${entry.isHome ? 'Local' : 'Visita'}</div>
+        <div class="fx-team away">${escapeHtml(entry.rivalClub.short_name || entry.rivalClub.name)} ${crestImg(entry.rivalClub, 22)}</div>
+      </div>
+      <div class="calendar-entry-foot">
+        <span class="calendar-entry-date">📅 ${escapeHtml(entry.date)}</span>
+        ${
+          entry.canWatch
+            ? `<button class="watch-btn" data-watch-kind="${entry.kind}" data-watch-id="${entry.id}">▶ Ver</button>`
+            : '<span class="locked-note" title="Primero debes jugar el partido anterior del calendario">🔒 Pendiente</span>'
+        }
+      </div>
+    </div>`;
+}
+
+async function renderCalendarTab() {
+  mainView.innerHTML = partidosTabBarHtml('calendario') + '<div class="empty-state">Cargando…</div>';
+  try {
+    const [entries, tacticsData] = await Promise.all([api('/calendar'), api('/tactics')]);
+    renderCalendarData(entries, tacticsData);
+  } catch (e) {
+    mainView.innerHTML = partidosTabBarHtml('calendario') + `<div class="empty-state">Error al cargar el calendario: ${escapeHtml(e.message)}</div>`;
+    wirePartidosTabBar();
+  }
+}
+
+function renderCalendarData(entries, tacticsData) {
+  const formation = (tacticsData.saved && tacticsData.saved.formation) || LINEUP_FORMATIONS[0];
+  const starterIds = tacticsData.saved ? new Set(tacticsData.saved.playerIds) : autoPickLineup(tacticsData.roster);
+  const starters = tacticsData.roster.filter((p) => starterIds.has(p.id));
+
+  mainView.innerHTML = `
+    ${partidosTabBarHtml('calendario')}
+    <div class="view-header"><div><h1>📅 Calendario</h1><div class="sub">Tus próximos partidos en las 4 competiciones nacionales, en orden.</div></div></div>
+    <div class="partidos-calendar-layout">
+      <div class="partidos-calendar-col">
+        ${entries.length ? entries.map(calendarEntryHtml).join('') : '<div class="empty-state">No tienes partidos pendientes por ahora.</div>'}
+      </div>
+      <div class="partidos-formation-col card">
+        <div class="label">Formación</div>
+        <div class="rs-formation-name">${escapeHtml(formation)}</div>
+        <div class="pitch-wrap board-wrap">
+          <svg class="pitch" viewBox="0 0 100 64" preserveAspectRatio="none">
+            <rect x="0" y="0" width="100" height="64" class="pitch-grass"/>
+            <rect x="0.5" y="0.5" width="99" height="63" class="pitch-line"/>
+            <line x1="50" y1="0" x2="50" y2="64" class="pitch-line"/>
+            <circle cx="50" cy="32" r="8" class="pitch-line"/>
+          </svg>
+          <div class="formation-board" id="cal-formation-board"></div>
+        </div>
+        <button class="rs-edit-btn" id="cal-edit-formation-btn">EDITAR FORMACIÓN</button>
+      </div>
+    </div>`;
+  renderFormationBoard(document.getElementById('cal-formation-board'), starters, formation);
+  document.getElementById('cal-edit-formation-btn').addEventListener('click', () => openTacticsEditor(tacticsData));
+  wirePartidosTabBar();
+}
 
 function renderSeasonSummary(result) {
   const section = (title, items, render) => `
@@ -1237,11 +1360,7 @@ document.addEventListener('click', (e) => {
 });
 
 window.onMatchFinished = function () {
-  if (state.activeComp === 'league-a') renderLeagueView('Primera A');
-  else if (state.activeComp === 'league-b') renderLeagueView('Primera B');
-  else if (state.activeComp === 'copa') renderCopaView();
-  else if (state.activeComp === 'supercopa') renderSuperCopaView();
-  else if (state.activeComp === 'copa-liga') renderCopaLigaView();
+  if (state.activeComp === 'partidos') renderPartidosView(state.partidosTab);
   if (window.refreshRightSidebar) window.refreshRightSidebar();
   if (window.checkCareerEvents) window.checkCareerEvents();
 };
