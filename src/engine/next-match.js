@@ -2,12 +2,14 @@
 // a traves de las 4 competiciones nacionales (Supercopa, Copa Chile, Copa de
 // la Liga, Liga). Alimenta tanto el modulo "Proximo partido" de la barra
 // lateral como la pestaña "Calendario" de la sección Partidos. No hay un
-// calendario unico entre competiciones en el motor del juego, asi que se usa
-// una prioridad fija: Supercopa (partido unico de pretemporada) > Copa Chile
-// (rondas espaciadas) > Copa de la Liga (grupos + eliminacion) > Liga (la
-// jornada semanal, el "pan de cada dia"). Solo el primer partido de la lista
-// es jugable (canWatch); el resto se muestra bloqueado, a la espera de que se
-// avance por orden de competicion.
+// calendario unico entre competiciones en el motor del juego, asi que se
+// aproxima uno repartiendo cada competicion en semanas (weekOffset) y
+// ordenando los partidos pendientes por esa semana aproximada, no por una
+// prioridad fija de competicion: asi la Liga no queda congelada (y con ella
+// el resto de los clubes de la liga, que solo avanzan cuando el usuario juega
+// su propio partido) esperando a que se agoten todas las rondas pendientes de
+// Copa Chile o Copa de la Liga. Solo el primer partido de la lista (el mas
+// proximo en el tiempo) es jugable (canWatch); el resto se muestra bloqueado.
 const { getCareer } = require('./board');
 const { getCurrentSeasonYear } = require('./season');
 
@@ -41,6 +43,7 @@ async function buildEntry(db, { kind, id, homeClubId, awayClubId, competition, r
     competition,
     roundLabel,
     seasonYear,
+    weekOffset,
     date: approximateDate(seasonYear, weekOffset),
     stadium: (isHome ? home : away).stadium || null,
     isHome,
@@ -49,9 +52,8 @@ async function buildEntry(db, { kind, id, homeClubId, awayClubId, competition, r
   };
 }
 
-// Prioridad fija entre competiciones (no hay fecha real compartida en el
-// motor del juego): define tanto el orden de la lista como cual partido es
-// el unico jugable ahora mismo.
+// Desempate cuando dos competiciones caen en la misma semana aproximada (ver
+// weekOffset en cada entry mas abajo): orden fijo solo para ese caso.
 const COMPETITION_PRIORITY = { supercopa: 0, copa: 1, 'copa-liga': 2, league: 3 };
 
 async function getUpcomingCalendar(db) {
@@ -141,7 +143,7 @@ async function getUpcomingCalendar(db) {
     );
   }
 
-  entries.sort((a, b) => COMPETITION_PRIORITY[a.kind] - COMPETITION_PRIORITY[b.kind]);
+  entries.sort((a, b) => a.weekOffset - b.weekOffset || COMPETITION_PRIORITY[a.kind] - COMPETITION_PRIORITY[b.kind]);
   entries.forEach((e, i) => { e.canWatch = i === 0; });
   return entries;
 }

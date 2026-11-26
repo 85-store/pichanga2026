@@ -1,0 +1,19 @@
+Fondo cinematografico del menu de inicio
+=========================================
+
+Copia aqui dentro (public/imagenes de fondos/) tus fotos de jugadores,
+estadios y momentos historicos del futbol chileno. No hace falta
+renombrarlas: el servidor lista automaticamente todo lo que haya en esta
+carpeta (GET /bg-photos.json), con el nombre que traigan y en formato
+.jpg, .jpeg, .png, .webp o .avif.
+
+Formato recomendado: horizontales (apaisadas), al menos 1600x900, buena
+calidad y sin texto/logos superpuestos (el logo PICHANGA 26 y los botones
+del menu ya van encima, con una capa oscura para que se lean bien).
+
+Se muestran de fondo en la pantalla de inicio, una a la vez, cambiando cada
+5 segundos con una transicion de fundido (crossfade) y en orden aleatorio
+sin repetir hasta pasar por todas. Si una foto no carga simplemente se
+salta, y si la carpeta esta vacia queda solo el degradado oscuro de
+siempre. No afectan las partidas guardadas ni el funcionamiento de
+Continuar/Cargar/Nuevo.

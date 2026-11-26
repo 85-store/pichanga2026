@@ -1,0 +1,21 @@
+Imagenes y musica de la pantalla de Balance de fin de temporada
+=================================================================
+
+Al terminar cada temporada aparece una pantalla especial con tus trofeos
+(vacios si no ganaste ninguno), los goleadores de tu plantel y tu reputacion
+con la directiva, la hinchada, los medios y el camarin. Segun si ganaste
+algo o no, se muestra una imagen y suena una musica distinta.
+
+No puedo descargar ni incluir estos archivos por derechos de autor. Agrega
+tus propios archivos (que ya tengas licencia para usar) con estos nombres
+EXACTOS dentro de esta carpeta (public/balance/):
+
+  campeon.jpg   -> imagen si ganaste al menos un titulo esta temporada
+  nada.jpg      -> imagen si no ganaste ningun titulo esta temporada
+  campeon.mp3   -> musica si ganaste al menos un titulo esta temporada
+  nada.mp3      -> musica si no ganaste ningun titulo esta temporada
+
+Si falta algun archivo, simplemente no se muestra/suena (el resto de la
+pantalla se ve igual).
+
+Los trofeos usan las imagenes que ya existen en public/trophies/.

@@ -49,6 +49,15 @@ const INCIDENT_TYPES = [
 
 const HALFTIME_MESSAGES = ['motivador', 'exigente', 'tactico'];
 
+// Boost de "Inspirar jugador": sube el rating EFECTIVO del jugador elegido,
+// solo para este partido (se aplica directo sobre su copia en la sesion en
+// memoria, nunca se escribe en la tabla players) - un arquero inspirado sube
+// mucho mas porque un gran partido suyo (atajadas clave) pesa más en el
+// resultado que el de un jugador de campo.
+const INSPIRE_BOOST_FIELD = 14;
+const INSPIRE_BOOST_GK = 24;
+const INSPIRE_RATING_CAP = 99;
+
 const sessions = new Map();
 const TABLE_BY_KIND = { league: 'fixtures', copa: 'copa_matches', supercopa: 'super_copa_matches', 'copa-liga': 'copa_liga_matches' };
 
@@ -59,6 +68,28 @@ const TABLE_BY_KIND = { league: 'fixtures', copa: 'copa_matches', supercopa: 'su
 // de otro.
 function sessionKey(uid, kind, id) {
   return `${uid}:${kind}:${id}`;
+}
+
+// Cola de ejecucion por partido: advance()/shootoutKick()/resolveIncident()/
+// setTactics() hacen escrituras async a la base y pueden terminar el partido
+// (finalize()). Sin esto, dos pedidos superpuestos para el mismo partido
+// (p.ej. el timer del cliente disparando de nuevo antes de que vuelva la
+// respuesta anterior, por latencia de red hacia Turso, o dos pestañas con el
+// mismo partido abierto) corren en paralelo sobre el mismo objeto de sesion
+// en memoria: ambos pueden ver atEndOfMatch=true y llamar a finalize() dos
+// veces a la vez, lo que hace fallar una de las dos escrituras (choque en
+// Turso) y deja al partido mostrando "El partido ya terminó" en todo intento
+// posterior - la causa real de que el partido quedara pegado en el minuto
+// 90 incluso con finalize() arreglado para no marcar session.finished antes
+// de tiempo. Esta cola asegura que, para una misma sesion, cada pedido
+// espere a que termine (bien o mal) el anterior antes de empezar el suyo.
+const sessionQueues = new Map();
+
+function runQueued(key, fn) {
+  const prev = sessionQueues.get(key) || Promise.resolve();
+  const next = prev.then(fn, fn);
+  sessionQueues.set(key, next.catch(() => {}));
+  return next;
 }
 
 function getSession(uid, kind, id) {
@@ -107,6 +138,7 @@ function publicPlayer(p) {
     onField: !!p.onField,
     yellow: p.yellow || 0,
     pos: p.pos || null,
+    inspired: !!p.inspired,
   };
 }
 
@@ -156,6 +188,7 @@ function publicView(session) {
     pause: session.pause || null,
     pendingPenalty: session.pendingPenalty ? { side: session.pendingPenalty.side } : null,
     shootout: publicShootout(session),
+    inspiredUsed: !!session.inspiredUsed,
   };
 }
 
@@ -220,8 +253,9 @@ async function startMatch(uid, db, kind, id, seasonYear, options) {
   const homeSquad = buildSquad(homePlayers, homeTactics.formation, homeIsManaged ? lineup : null);
   const awaySquad = buildSquad(awayPlayers, awayTactics.formation, awayIsManaged ? lineup : null);
 
-  const homeIdentity = await getManagedIdentity(db, homeClub.id);
-  const awayIdentity = await getManagedIdentity(db, awayClub.id);
+  const identityCareer = await require('./board').getCareer(db);
+  const homeIdentity = await getManagedIdentity(db, homeClub.id, identityCareer);
+  const awayIdentity = await getManagedIdentity(db, awayClub.id, identityCareer);
   const homeCohesion = Math.min(1.1, (await cohesionFactor(db, homeClub.id, homeSquad.lineup.map((p) => p.id), seasonYear)) + identityCohesionBonus(homeIdentity));
   const awayCohesion = Math.min(1.1, (await cohesionFactor(db, awayClub.id, awaySquad.lineup.map((p) => p.id), seasonYear)) + identityCohesionBonus(awayIdentity));
   const homeMorale = identityMoraleAdjust(homeIdentity, await moraleFactor(db, homeClub.id, seasonYear));
@@ -247,6 +281,8 @@ async function startMatch(uid, db, kind, id, seasonYear, options) {
     pause: null,
     pendingPenalty: null,
     shootoutState: null,
+    inspiredUsed: false,
+    inspiredPlayerId: null,
     halfEventCount: { 1: 0, 2: 0 },
     incidentCooldownUntil: 8, // casi nunca en los primeros minutos del partido
     finished: false,
@@ -804,22 +840,39 @@ function initShootout(session) {
 }
 
 async function finalize(db, session, opts) {
-  session.finished = true;
-
+  // OJO: session.finished se marca recien al final (justo antes de borrar la
+  // sesion), no aca arriba. Si se marcara aca y despues fallara alguna de las
+  // escrituras de abajo (por ejemplo un corte de red momentaneo hablando con
+  // Turso), la sesion quedaba "terminada" en memoria para siempre sin haberse
+  // guardado nada: todo intento de avanzar despues chocaba con "El partido ya
+  // terminó" (el chequeo de mas abajo en advance()) en vez de poder
+  // reintentar, dejando el partido pegado sin forma de recuperarlo.
   const homeEver = [...session.home.everPlayed.values()];
   const awayEver = [...session.away.everPlayed.values()];
 
-  await recordMatchStats(db, session.seasonYear, session.home.clubId, session.away.clubId, {
-    homeGoals: session.home.goals,
-    awayGoals: session.away.goals,
-    homeLineup: homeEver,
-    awayLineup: awayEver,
-    events: {
-      homeScorers: session.scorers.home,
-      awayScorers: session.scorers.away,
-      cards: session.cards,
-    },
-  });
+  // recordMatchStats() dispara, como efecto de lado, el sistema de
+  // acontecimientos (career-events.js: reuniones con el gerente, polemicas,
+  // etc.), que incrementa el contador de partidos dirigidos y crea eventos
+  // nuevos cada vez que se llama. Si finalize() fallaba MAS ADELANTE (p.ej.
+  // al guardar el resultado del fixture, por un corte de red) y se
+  // reintentaba, este bloque se volvia a ejecutar desde cero y generaba una
+  // reunion (u otro acontecimiento) duplicada cada vez - el motivo real de
+  // "me cita todo el rato a las mismas reuniones". Se marca con un flag en la
+  // sesion para que, aunque finalize() se reintente, esto corra una sola vez.
+  if (!session.statsRecorded) {
+    await recordMatchStats(db, session.seasonYear, session.home.clubId, session.away.clubId, {
+      homeGoals: session.home.goals,
+      awayGoals: session.away.goals,
+      homeLineup: homeEver,
+      awayLineup: awayEver,
+      events: {
+        homeScorers: session.scorers.home,
+        awayScorers: session.scorers.away,
+        cards: session.cards,
+      },
+    });
+    session.statsRecorded = true;
+  }
 
   const knockout = isKnockout(session);
   let decidedByPenalties = 0;
@@ -838,45 +891,57 @@ async function finalize(db, session, opts) {
     winnerClubId = session.home.goals > session.away.goals ? session.home.clubId : session.away.clubId;
   }
 
+  // Escritura final del resultado + lesiones en un solo batch (una llamada a
+  // Turso) en vez de 2-3 round-trips awaiteados por lesion mas la del
+  // resultado: esto era lo que hacia sentir "pegado" el partido justo al
+  // llegar al minuto final, mientras el cliente esperaba esta respuesta.
+  const finalizeStmts = [];
   if (session.kind === 'supercopa') {
-    await db.prepare(
-      `UPDATE super_copa_matches SET home_goals = ?, away_goals = ?, played = 1, decided_by_penalties = ?, winner_club_id = ? WHERE id = ?`
-    ).run(session.home.goals, session.away.goals, decidedByPenalties, winnerClubId, session.rowId);
-    await db.prepare(`INSERT INTO club_titles (club_id, season_year, title_name) VALUES (?, ?, ?)`).run(
-      winnerClubId,
-      session.seasonYear,
-      'Campeón Supercopa'
-    );
+    finalizeStmts.push({
+      sql: `UPDATE super_copa_matches SET home_goals = ?, away_goals = ?, played = 1, decided_by_penalties = ?, winner_club_id = ? WHERE id = ?`,
+      args: [session.home.goals, session.away.goals, decidedByPenalties, winnerClubId, session.rowId],
+    });
+    finalizeStmts.push({
+      sql: `INSERT INTO club_titles (club_id, season_year, title_name) VALUES (?, ?, ?)`,
+      args: [winnerClubId, session.seasonYear, 'Campeón Supercopa'],
+    });
   } else if (session.kind === 'copa') {
-    await db.prepare(
-      `UPDATE copa_matches SET home_goals = ?, away_goals = ?, played = 1, decided_by_penalties = ?, winner_club_id = ? WHERE id = ?`
-    ).run(session.home.goals, session.away.goals, decidedByPenalties, winnerClubId, session.rowId);
+    finalizeStmts.push({
+      sql: `UPDATE copa_matches SET home_goals = ?, away_goals = ?, played = 1, decided_by_penalties = ?, winner_club_id = ? WHERE id = ?`,
+      args: [session.home.goals, session.away.goals, decidedByPenalties, winnerClubId, session.rowId],
+    });
   } else if (session.kind === 'copa-liga') {
-    await db.prepare(
-      `UPDATE copa_liga_matches SET home_goals = ?, away_goals = ?, played = 1, decided_by_penalties = ?, winner_club_id = ? WHERE id = ?`
-    ).run(session.home.goals, session.away.goals, decidedByPenalties, winnerClubId, session.rowId);
+    finalizeStmts.push({
+      sql: `UPDATE copa_liga_matches SET home_goals = ?, away_goals = ?, played = 1, decided_by_penalties = ?, winner_club_id = ? WHERE id = ?`,
+      args: [session.home.goals, session.away.goals, decidedByPenalties, winnerClubId, session.rowId],
+    });
   } else {
-    await db.prepare('UPDATE fixtures SET home_goals = ?, away_goals = ?, played = 1 WHERE id = ?').run(
-      session.home.goals,
-      session.away.goals,
-      session.rowId
-    );
+    finalizeStmts.push({
+      sql: 'UPDATE fixtures SET home_goals = ?, away_goals = ?, played = 1 WHERE id = ?',
+      args: [session.home.goals, session.away.goals, session.rowId],
+    });
   }
 
   for (const inj of session.injuries) {
-    await db.prepare(
-      `INSERT INTO injuries (player_id, season_year, injury_type, severity, weeks_out, weeks_remaining, is_relapse, started_at)
-       VALUES (?, ?, ?, ?, ?, ?, 0, datetime('now'))`
-    ).run(inj.player.id, session.seasonYear, inj.injury.injuryType, inj.injury.severity, inj.injury.weeksOut, inj.injury.weeksOut);
-    await db.prepare("UPDATE players SET status = 'lesionado' WHERE id = ?").run(inj.player.id);
-    await db.prepare(
-      `INSERT INTO player_history_events (player_id, season_year, event_type, description) VALUES (?, ?, 'lesion', ?)`
-    ).run(
-      inj.player.id,
-      session.seasonYear,
-      `Se lesionó durante un partido (minuto ${inj.minute}): ${inj.injury.injuryType.toLowerCase()} de gravedad ${inj.injury.severity.toLowerCase()}.`
-    );
+    finalizeStmts.push({
+      sql: `INSERT INTO injuries (player_id, season_year, injury_type, severity, weeks_out, weeks_remaining, is_relapse, started_at)
+            VALUES (?, ?, ?, ?, ?, ?, 0, datetime('now'))`,
+      args: [inj.player.id, session.seasonYear, inj.injury.injuryType, inj.injury.severity, inj.injury.weeksOut, inj.injury.weeksOut],
+    });
+    finalizeStmts.push({
+      sql: "UPDATE players SET status = 'lesionado' WHERE id = ?",
+      args: [inj.player.id],
+    });
+    finalizeStmts.push({
+      sql: `INSERT INTO player_history_events (player_id, season_year, event_type, description) VALUES (?, ?, 'lesion', ?)`,
+      args: [
+        inj.player.id,
+        session.seasonYear,
+        `Se lesionó durante un partido (minuto ${inj.minute}): ${inj.injury.injuryType.toLowerCase()} de gravedad ${inj.injury.severity.toLowerCase()}.`,
+      ],
+    });
   }
+  await db.batch(finalizeStmts);
 
   const summary = {
     homeGoals: session.home.goals,
@@ -895,6 +960,7 @@ async function finalize(db, session, opts) {
     suspensionReason: (opts && opts.suspensionReason) || null,
   };
 
+  session.finished = true;
   sessions.delete(session.key);
   return summary;
 }
@@ -933,7 +999,11 @@ function maybeAdvanceHalf(session) {
   return true;
 }
 
-async function advance(uid, db, kind, id, minutes) {
+function advance(uid, db, kind, id, minutes) {
+  return runQueued(sessionKey(uid, kind, id), () => advanceNow(uid, db, kind, id, minutes));
+}
+
+async function advanceNow(uid, db, kind, id, minutes) {
   const session = getSession(uid, kind, id);
   if (!session) throw new Error('No hay un partido en curso para este fixture.');
   if (session.finished) throw new Error('El partido ya terminó.');
@@ -1007,7 +1077,11 @@ function resolvePenalty(uid, kind, id, playerId, managedClubId) {
 // dirige el usuario, requiere playerId; si es turno de la IA, elige ella
 // misma a quien patea (ignorando playerId). Si la tanda termina, finaliza el
 // partido de inmediato y devuelve el resumen final.
-async function shootoutKick(uid, db, kind, id, playerId, managedClubId) {
+function shootoutKick(uid, db, kind, id, playerId, managedClubId) {
+  return runQueued(sessionKey(uid, kind, id), () => shootoutKickNow(uid, db, kind, id, playerId, managedClubId));
+}
+
+async function shootoutKickNow(uid, db, kind, id, playerId, managedClubId) {
   const session = getSession(uid, kind, id);
   if (!session) throw new Error('No hay un partido en curso para este fixture.');
   const state = session.shootoutState;
@@ -1080,7 +1154,11 @@ function resolveHalftime(uid, kind, id, message, managedClubId) {
 // perdido como descuento adicional (no se pierde del todo); "suspender" (solo
 // disponible en incidentes graves) termina el partido ya mismo, ratificando
 // el resultado al momento de la suspension como resolucion de la competicion.
-async function resolveIncident(uid, db, kind, id, action) {
+function resolveIncident(uid, db, kind, id, action) {
+  return runQueued(sessionKey(uid, kind, id), () => resolveIncidentNow(uid, db, kind, id, action));
+}
+
+async function resolveIncidentNow(uid, db, kind, id, action) {
   const session = getSession(uid, kind, id);
   if (!session) throw new Error('No hay un partido en curso para este fixture.');
   if (!session.pause || session.pause.type !== 'incident') throw new Error('No hay un incidente pendiente.');
@@ -1115,7 +1193,11 @@ function assertControlsSide(session, side, managedClubId) {
   }
 }
 
-async function setTactics(uid, db, kind, id, side, tactics, managedClubId) {
+function setTactics(uid, db, kind, id, side, tactics, managedClubId) {
+  return runQueued(sessionKey(uid, kind, id), () => setTacticsNow(uid, db, kind, id, side, tactics, managedClubId));
+}
+
+async function setTacticsNow(uid, db, kind, id, side, tactics, managedClubId) {
   const session = getSession(uid, kind, id);
   if (!session) throw new Error('No hay un partido en curso para este fixture.');
   if (session.finished) throw new Error('El partido ya terminó.');
@@ -1156,10 +1238,47 @@ function substitute(uid, kind, id, side, outPlayerId, inPlayerId, managedClubId)
   return publicView(session);
 }
 
+// "Inspirar jugador": el usuario elige, una sola vez por partido, a un
+// jugador de su propio equipo para que tenga un partidazo. Sube su rating
+// EFECTIVO (el que usan todas las formulas del motor: remates, atajadas,
+// duelos) solo en esta sesion en memoria - nunca toca la tabla players, asi
+// que el efecto termina con el partido. Si es arquero, el boost es mayor.
+function inspirePlayer(uid, kind, id, playerId, managedClubId) {
+  const session = getSession(uid, kind, id);
+  if (!session) throw new Error('No hay un partido en curso para este fixture.');
+  if (session.finished) throw new Error('El partido ya terminó.');
+  if (session.inspiredUsed) throw new Error('Ya usaste tu inspiración en este partido.');
+
+  const side = sideForClub(session, managedClubId);
+  if (!side) throw new Error('No controlas a ningún equipo en este partido.');
+  const target = session[side];
+  const player = target.lineup.find((p) => p.id === Number(playerId) && p.onField);
+  if (!player) throw new Error('Jugador no disponible para inspirar.');
+
+  const boost = player.position === 'Portero' ? INSPIRE_BOOST_GK : INSPIRE_BOOST_FIELD;
+  player.rating = Math.min(INSPIRE_RATING_CAP, player.rating + boost);
+  player.inspired = true;
+
+  session.inspiredUsed = true;
+  session.inspiredPlayerId = player.id;
+
+  return publicView(session);
+}
+
 function getState(uid, kind, id) {
   const session = getSession(uid, kind, id);
   if (!session) return null;
   return publicView(session);
+}
+
+// managedClubId ya quedo fijo en la sesion al arrancar el partido (startMatch)
+// y no cambia durante el mismo: los botones del partido en vivo (tactica,
+// cambios, penal, tanda, entretiempo) pueden usar este valor en vez de volver
+// a pedir la carrera a la base en cada click, ahorrando un round-trip contra
+// Turso por cada boton apretado durante el partido.
+function getManagedClubId(uid, kind, id) {
+  const session = getSession(uid, kind, id);
+  return session ? session.managedClubId : null;
 }
 
 module.exports = {
@@ -1172,4 +1291,6 @@ module.exports = {
   shootoutKick,
   resolveHalftime,
   resolveIncident,
+  inspirePlayer,
+  getManagedClubId,
 };

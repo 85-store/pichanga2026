@@ -159,7 +159,9 @@ CREATE TABLE IF NOT EXISTS career (
   last_exigencia_at INTEGER NOT NULL DEFAULT 0,
   last_polemica_at INTEGER NOT NULL DEFAULT 0,
   last_clasico_at INTEGER NOT NULL DEFAULT 0,
-  last_hinchada_at INTEGER NOT NULL DEFAULT 0
+  last_hinchada_at INTEGER NOT NULL DEFAULT 0,
+  media_pressure INTEGER NOT NULL DEFAULT 40,     -- PRENSA: presion mediatica acumulada (0-100, mas alto = mas presion)
+  last_prensa_at INTEGER NOT NULL DEFAULT 0
 );
 
 -- Acontecimientos y relaciones de la carrera: reuniones con la dirigencia,
@@ -169,13 +171,14 @@ CREATE TABLE IF NOT EXISTS career_events (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   season_year INTEGER NOT NULL,
   match_count INTEGER NOT NULL,
-  kind TEXT NOT NULL CHECK (kind IN ('reunion', 'exigencia', 'polemica', 'clasico', 'hinchada')),
+  kind TEXT NOT NULL CHECK (kind IN ('reunion', 'exigencia', 'polemica', 'clasico', 'hinchada', 'prensa')),
   subtype TEXT,
   title TEXT NOT NULL,
   description TEXT NOT NULL,
   options TEXT NOT NULL,       -- JSON: [{id, label, moraleDelta, confidenceDelta, reputationDelta}]
   status TEXT NOT NULL DEFAULT 'pendiente' CHECK (status IN ('pendiente', 'resuelto')),
   chosen_option TEXT,
+  written_response TEXT,       -- respuesta libre del usuario, si eligio escribir en vez de una opcion predeterminada
   result_text TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   resolved_at TEXT

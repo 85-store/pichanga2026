@@ -78,6 +78,10 @@ async function simulateMatch(homePlayers, awayPlayers, ctx) {
 
   const homeTactics = await loadClubTactics(db, homeClubId);
   const awayTactics = await loadClubTactics(db, awayClubId);
+  // Se pide la carrera una sola vez aqui (en vez de que cada lado la vuelva a
+  // pedir dentro de buildTeamProfile->getManagedIdentity) y se pasa a ambos
+  // perfiles: mismo dato, la mitad de round-trips contra Turso.
+  const career = db ? await require('./board').getCareer(db) : null;
 
   const homeProfile = await buildTeamProfile({
     onFieldPlayers: homeLineup,
@@ -89,6 +93,7 @@ async function simulateMatch(homePlayers, awayPlayers, ctx) {
     seasonYear,
     ownStrength: homeStrength,
     oppStrength: awayStrength,
+    career,
   });
   const awayProfile = await buildTeamProfile({
     onFieldPlayers: awayLineup,
@@ -99,6 +104,7 @@ async function simulateMatch(homePlayers, awayPlayers, ctx) {
     clubId: awayClubId,
     seasonYear,
     ownStrength: awayStrength,
+    career,
     oppStrength: homeStrength,
   });
 

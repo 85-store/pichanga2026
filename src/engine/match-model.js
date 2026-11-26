@@ -83,14 +83,22 @@ function formationMatchup(ownFormation, oppFormation) {
 // / formado en casa, por lo tanto ya asentado.
 async function cohesionFactor(db, clubId, lineupIds, currentSeasonYear) {
   if (!lineupIds.length) return 1;
+  // Una sola consulta con IN(...) en vez de un round-trip awaiteado por
+  // jugador del 11 (contra una base remota de Turso, esto era de lejos el
+  // mayor costo de simular un partido: 11 round-trips x 2 equipos).
+  const placeholders = lineupIds.map(() => '?').join(',');
+  const rows = await db
+    .prepare(
+      `SELECT player_id, MAX(season_year) as season_year FROM transfers
+       WHERE to_club_id = ? AND player_id IN (${placeholders})
+       GROUP BY player_id`
+    )
+    .all(clubId, ...lineupIds);
+  const lastSeasonByPlayer = new Map(rows.map((r) => [r.player_id, r.season_year]));
   let settled = 0;
   for (const playerId of lineupIds) {
-    const lastTransfer = await db
-      .prepare(
-        `SELECT season_year FROM transfers WHERE player_id = ? AND to_club_id = ? ORDER BY season_year DESC, id DESC LIMIT 1`
-      )
-      .get(playerId, clubId);
-    if (!lastTransfer || lastTransfer.season_year < currentSeasonYear) settled += 1;
+    const lastSeasonYear = lastSeasonByPlayer.get(playerId);
+    if (lastSeasonYear == null || lastSeasonYear < currentSeasonYear) settled += 1;
   }
   const fraction = settled / lineupIds.length;
   return 0.92 + 0.16 * fraction; // 0.92 (plantel recien armado) .. 1.08 (plantel asentado)
@@ -124,7 +132,7 @@ async function moraleFactor(db, clubId, seasonYear) {
 // `ownStrength`/`oppStrength` (rating promedio de cada plantel, ya calculado
 // por el caller) solo se usan para decidir si el club es underdog en este
 // cruce puntual - un ajuste liviano, nunca decisivo por si solo.
-async function buildTeamProfile({ onFieldPlayers, lineupIds, tactics, oppFormation, db, clubId, seasonYear, ownStrength, oppStrength }) {
+async function buildTeamProfile({ onFieldPlayers, lineupIds, tactics, oppFormation, db, clubId, seasonYear, ownStrength, oppStrength, career }) {
   const base = teamAttackDefense(onFieldPlayers);
   const matchup = formationMatchup(tactics.formation, oppFormation);
   const mentAtk = MENTALITY_ATTACK[tactics.mentality] || 0;
@@ -132,7 +140,7 @@ async function buildTeamProfile({ onFieldPlayers, lineupIds, tactics, oppFormati
   const styleAtk = STYLE_ATTACK[tactics.style] || 0;
   const pressDef = PRESSING_DEFENSE[tactics.pressing] || 0;
 
-  const identity = await getManagedIdentity(db, clubId);
+  const identity = await getManagedIdentity(db, clubId, career);
   const cohesionBase = db && clubId != null ? await cohesionFactor(db, clubId, lineupIds, seasonYear) : 1;
   const cohesion = Math.min(1.1, cohesionBase + identityCohesionBonus(identity));
   const moraleBase = db && clubId != null ? await moraleFactor(db, clubId, seasonYear) : 1;

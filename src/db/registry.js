@@ -5,11 +5,22 @@
 const { openDb } = require('./index');
 const platform = require('./turso-platform');
 const { seedClubs } = require('../../scripts/seed-clubs');
-const { importAllRosters } = require('../../scripts/import-roster');
+const { importAllRostersFast } = require('../../scripts/import-roster');
 
 const META_DB_NAME = 'pichanga-meta';
 
 let metaDbPromise = null;
+
+// Cache de handles por (uid, slot): sin esto, cada pedido HTTP (cada click,
+// cada partido, cada avance de temporada) volvia a abrir una conexion Turso
+// nueva y corria el schema.sql completo (decenas de CREATE TABLE) de nuevo -
+// el motivo real de que el juego se sintiera lento/con botones que no
+// respondian. openDb() solo necesita correr una vez por proceso por base.
+const userDbCache = new Map();
+
+function cacheKey(uid, slot) {
+  return `${uid}::${slot}`;
+}
 
 // La base meta usa el mismo schema del juego (via openDb) aunque solo
 // necesite la tabla clubs (como catalogo de solo lectura para elegir equipo
@@ -70,9 +81,18 @@ async function getSaveRecord(uid, slot) {
 // Devuelve el handle de la base de un usuario/slot que ya tiene partida
 // provisionada, o null si ese slot todavia esta vacio.
 async function getUserDbHandle(uid, slot) {
+  const key = cacheKey(uid, slot);
+  if (userDbCache.has(key)) return userDbCache.get(key);
+
   const record = await getSaveRecord(uid, slot);
   if (!record) return null;
-  return openDb({ url: record.turso_db_url, authToken: record.turso_db_token });
+
+  const dbPromise = openDb({ url: record.turso_db_url, authToken: record.turso_db_token });
+  userDbCache.set(key, dbPromise);
+  // Si openDb falla, no dejar la promesa rechazada en cache (bloquearia todos
+  // los pedidos siguientes para ese slot hasta reiniciar el servidor).
+  dbPromise.catch(() => userDbCache.delete(key));
+  return dbPromise;
 }
 
 // Crea una base Turso nueva para este usuario/slot, le corre el schema del
@@ -90,7 +110,7 @@ async function provisionUserDb(uid, slot) {
 
   const db = await openDb({ url, authToken: token });
   await seedClubs(db);
-  await importAllRosters(db);
+  await importAllRostersFast(db);
 
   const meta = await getMetaDb();
   await meta
@@ -99,6 +119,7 @@ async function provisionUserDb(uid, slot) {
     )
     .run(uid, slot, dbName, url, token);
 
+  userDbCache.set(cacheKey(uid, slot), Promise.resolve(db));
   return db;
 }
 
@@ -108,6 +129,7 @@ async function deleteUserDb(uid, slot) {
   await platform.deleteDatabase(record.turso_db_name);
   const meta = await getMetaDb();
   await meta.prepare('DELETE FROM user_saves WHERE firebase_uid = ? AND slot = ?').run(uid, slot);
+  userDbCache.delete(cacheKey(uid, slot));
 }
 
 module.exports = { listUserSaves, getSaveRecord, getUserDbHandle, provisionUserDb, deleteUserDb, getCatalogClubs };

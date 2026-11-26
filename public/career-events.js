@@ -4,7 +4,7 @@
 // Expuesto como window.checkCareerEvents(), para llamarlo desde app.js /
 // match.js cada vez que pudo haber terminado un partido dirigido por el usuario.
 
-const CE_ICONS = { reunion: '🗂️', exigencia: '📈', polemica: '🔥', clasico: '⚔️', hinchada: '📣' };
+const CE_ICONS = { reunion: '🗂️', exigencia: '📈', polemica: '🔥', clasico: '⚔️', hinchada: '📣', prensa: '📰' };
 
 let ceQueue = [];
 let ceShowing = false;
@@ -47,41 +47,82 @@ function ceShowNext() {
           .map((o, idx) => `<button class="ce-option-btn" data-option-id="${escapeHtml(o.id)}" data-idx="${idx}">${escapeHtml(o.label)}</button>`)
           .join('')}
       </div>
+      <div class="ce-freetext">
+        <textarea class="ce-freetext-input" maxlength="300" placeholder="O escribe tu propia respuesta…"></textarea>
+        <button class="close-btn ce-freetext-send">Enviar</button>
+      </div>
       <div class="ce-result" style="display:none"></div>
     </div>`;
   modalRoot.appendChild(backdrop);
 
+  const lockInputs = () => {
+    backdrop.querySelectorAll('.ce-option-btn').forEach((b) => (b.disabled = true));
+    backdrop.querySelector('.ce-freetext-send').disabled = true;
+    backdrop.querySelector('.ce-freetext-input').disabled = true;
+  };
+  const unlockInputs = () => {
+    backdrop.querySelectorAll('.ce-option-btn').forEach((b) => (b.disabled = false));
+    backdrop.querySelector('.ce-freetext-send').disabled = false;
+    backdrop.querySelector('.ce-freetext-input').disabled = false;
+  };
+
+  const applyResult = (result) => {
+    const resultEl = backdrop.querySelector('.ce-result');
+    resultEl.style.display = '';
+    resultEl.innerHTML = `<p>${escapeHtml(result.event.result_text)}</p><button class="close-btn ce-continue-btn">Continuar</button>`;
+    backdrop.querySelector('.ce-options').style.display = 'none';
+    backdrop.querySelector('.ce-freetext').style.display = 'none';
+    backdrop.querySelector('.ce-continue-btn').addEventListener('click', () => {
+      window.closeModal(backdrop, () => {
+        ceShowing = false;
+        ceShowNext();
+      });
+    });
+    if (typeof state === 'object' && state.career) {
+      state.career.board_confidence = result.career.board_confidence;
+      state.career.locker_room_morale = result.career.locker_room_morale;
+      state.career.fan_support = result.career.fan_support;
+      state.career.manager_reputation = result.career.manager_reputation;
+      state.career.media_pressure = result.career.media_pressure;
+      if (window.renderCareerBox) window.renderCareerBox();
+    }
+  };
+
   backdrop.querySelectorAll('.ce-option-btn').forEach((btn) => {
     btn.addEventListener('click', async () => {
-      backdrop.querySelectorAll('.ce-option-btn').forEach((b) => (b.disabled = true));
+      lockInputs();
       try {
         const result = await ceApi(`/career-events/${event.id}/resolve`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ optionId: btn.dataset.optionId }),
         });
-        const resultEl = backdrop.querySelector('.ce-result');
-        resultEl.style.display = '';
-        resultEl.innerHTML = `<p>${escapeHtml(result.event.result_text)}</p><button class="close-btn ce-continue-btn">Continuar</button>`;
-        backdrop.querySelector('.ce-options').style.display = 'none';
-        backdrop.querySelector('.ce-continue-btn').addEventListener('click', () => {
-          window.closeModal(backdrop, () => {
-            ceShowing = false;
-            ceShowNext();
-          });
-        });
-        if (typeof state === 'object' && state.career) {
-          state.career.board_confidence = result.career.board_confidence;
-          state.career.locker_room_morale = result.career.locker_room_morale;
-          state.career.fan_support = result.career.fan_support;
-          state.career.manager_reputation = result.career.manager_reputation;
-          if (window.renderCareerBox) window.renderCareerBox();
-        }
+        applyResult(result);
       } catch (err) {
         alert('Error al resolver el acontecimiento: ' + err.message);
-        backdrop.querySelectorAll('.ce-option-btn').forEach((b) => (b.disabled = false));
+        unlockInputs();
       }
     });
+  });
+
+  backdrop.querySelector('.ce-freetext-send').addEventListener('click', async () => {
+    const text = backdrop.querySelector('.ce-freetext-input').value.trim();
+    if (!text) {
+      alert('Escribe una respuesta antes de enviarla.');
+      return;
+    }
+    lockInputs();
+    try {
+      const result = await ceApi(`/career-events/${event.id}/resolve`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text }),
+      });
+      applyResult(result);
+    } catch (err) {
+      alert('Error al enviar tu respuesta: ' + err.message);
+      unlockInputs();
+    }
   });
 }
 
@@ -102,6 +143,7 @@ const RELATION_KIND_GROUPS = {
   dirigencia: ['reunion', 'exigencia'],
   hinchada: ['hinchada'],
   camarin: ['polemica'],
+  prensa: ['prensa'],
 };
 
 window.ceShowHistoryFiltered = async function ceShowHistoryFiltered(groupKey, groupLabel) {
@@ -152,6 +194,7 @@ function ceKindLabel(kind) {
       polemica: 'Polémica interna',
       clasico: 'Clásico',
       hinchada: 'Acontecimiento de la hinchada',
+      prensa: 'Declaración de la prensa',
     }[kind] || kind
   );
 }

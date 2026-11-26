@@ -67,6 +67,18 @@ class CompatTx {
     await this.tx.rollback();
   }
 
+  // Igual que CompatDb.batch pero dentro de una transaccion interactiva ya
+  // abierta: varios statements en una sola llamada HTTP en vez de un
+  // round-trip por cada uno.
+  async batch(stmts) {
+    const results = await this.tx.batch(stmts.map((s) => ({ sql: s.sql, args: s.args || [] })));
+    return results.map((result) => ({
+      changes: result.rowsAffected,
+      lastInsertRowid: normalizeId(result.lastInsertRowid),
+      rows: result.rows ? result.rows.map((row) => rowToObject(result.columns, row)) : [],
+    }));
+  }
+
   close() {
     this.tx.close();
   }
@@ -96,6 +108,23 @@ class CompatDb {
   async transaction(mode = 'write') {
     const tx = await this.client.transaction(mode);
     return new CompatTx(tx);
+  }
+
+  // Ejecuta varios statements en una sola llamada HTTP en vez de un
+  // round-trip de red por cada uno (contra una base remota de Turso, un bucle
+  // de cientos de .run() secuenciales -como sembrar el plantel completo de la
+  // liga- puede tardar minutos; en un solo batch tarda segundos). stmts es un
+  // array de {sql, args}.
+  async batch(stmts, mode = 'write') {
+    const results = await this.client.batch(
+      stmts.map((s) => ({ sql: s.sql, args: s.args || [] })),
+      mode
+    );
+    return results.map((result) => ({
+      changes: result.rowsAffected,
+      lastInsertRowid: normalizeId(result.lastInsertRowid),
+      rows: result.rows ? result.rows.map((row) => rowToObject(result.columns, row)) : [],
+    }));
   }
 
   close() {

@@ -41,46 +41,59 @@ async function ensureFirstSeason(db, year) {
   }
 }
 
-async function logHistory(db, playerId, seasonYear, eventType, description) {
-  await db.prepare(
-    `INSERT INTO player_history_events (player_id, season_year, event_type, description) VALUES (?, ?, ?, ?)`
-  ).run(playerId, seasonYear, eventType, description);
-}
-
 // Procesa el progreso de lesiones activas: consume semanas y marca recuperados.
+// Batcheado (1 lectura + 1 escritura por avance de temporada en vez de hasta 3
+// round-trips awaiteados por lesion abierta): ver el comentario de
+// rollNewInjuries mas abajo sobre por que esto importaba para el avance
+// automatico de temporada.
 async function progressInjuries(db, currentYear) {
   const openInjuries = await db
     .prepare(`SELECT * FROM injuries WHERE recovered = 0`)
     .all();
+  if (!openInjuries.length) return;
 
+  const stmts = [];
   for (const inj of openInjuries) {
     const remaining = inj.weeks_remaining - SEASON_WEEKS;
     if (remaining <= 0) {
-      await db.prepare('UPDATE injuries SET weeks_remaining = 0, recovered = 1 WHERE id = ?').run(inj.id);
-      const player = await db.prepare('SELECT * FROM players WHERE id = ?').get(inj.player_id);
-      if (player && player.status === 'lesionado') {
-        await db.prepare("UPDATE players SET status = 'activo' WHERE id = ?").run(player.id);
-      }
-      await logHistory(db, inj.player_id, currentYear, 'recuperacion', `Se recuperó de una lesión ${inj.injury_type.toLowerCase()} (${inj.severity.toLowerCase()}).`);
+      stmts.push({ sql: 'UPDATE injuries SET weeks_remaining = 0, recovered = 1 WHERE id = ?', args: [inj.id] });
+      stmts.push({ sql: "UPDATE players SET status = 'activo' WHERE id = ? AND status = 'lesionado'", args: [inj.player_id] });
+      stmts.push({
+        sql: `INSERT INTO player_history_events (player_id, season_year, event_type, description) VALUES (?, ?, 'recuperacion', ?)`,
+        args: [inj.player_id, currentYear, `Se recuperó de una lesión ${inj.injury_type.toLowerCase()} (${inj.severity.toLowerCase()}).`],
+      });
     } else {
-      await db.prepare('UPDATE injuries SET weeks_remaining = ? WHERE id = ?').run(remaining, inj.id);
+      stmts.push({ sql: 'UPDATE injuries SET weeks_remaining = ? WHERE id = ?', args: [remaining, inj.id] });
     }
   }
+  await db.batch(stmts);
 }
 
-// Determina si un jugador tuvo lesion la temporada pasada (para calcular riesgo de recaida).
-async function getLastSeasonInjury(db, playerId, previousYear) {
-  return db
-    .prepare('SELECT * FROM injuries WHERE player_id = ? AND season_year = ? ORDER BY id DESC LIMIT 1')
-    .get(playerId, previousYear);
+// Trae de una sola vez la ultima lesion de la temporada pasada de CADA
+// jugador (antes era 1 consulta awaiteada por jugador activo - con ~700+
+// jugadores en toda la liga eso eran ~700 round-trips seguidos contra Turso
+// solo para esto, el principal motivo de que el avance de temporada quedara
+// colgado muchos segundos (ahora que avanza solo, sin boton, el usuario lo
+// nota de inmediato en vez de recien al final de una partida larga).
+async function getLastSeasonInjuriesByPlayer(db, previousYear) {
+  const rows = await db
+    .prepare('SELECT * FROM injuries WHERE season_year = ? ORDER BY id DESC')
+    .all(previousYear);
+  const map = new Map();
+  for (const row of rows) {
+    if (!map.has(row.player_id)) map.set(row.player_id, row);
+  }
+  return map;
 }
 
 async function rollNewInjuries(db, players, currentYear, previousYear) {
+  const lastInjuryByPlayer = await getLastSeasonInjuriesByPlayer(db, previousYear);
+  const stmts = [];
   for (const player of players) {
     if (player.status !== 'activo') continue; // ya esta lesionado o no disponible
     if (player.position === 'Portero') continue; // los porteros no sufren lesiones
     const age = ageInSeason(player.birth_date, currentYear);
-    const lastInjury = await getLastSeasonInjury(db, player.id, previousYear);
+    const lastInjury = lastInjuryByPlayer.get(player.id);
 
     const result = rollInjury({
       age,
@@ -89,78 +102,122 @@ async function rollNewInjuries(db, players, currentYear, previousYear) {
     });
     if (!result) continue;
 
-    await db.prepare(
-      `INSERT INTO injuries (player_id, season_year, injury_type, severity, weeks_out, weeks_remaining, is_relapse, started_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))`
-    ).run(player.id, currentYear, result.injuryType, result.severity, result.weeksOut, result.weeksOut, result.isRelapse ? 1 : 0);
-
-    await db.prepare("UPDATE players SET status = 'lesionado' WHERE id = ?").run(player.id);
+    stmts.push({
+      sql: `INSERT INTO injuries (player_id, season_year, injury_type, severity, weeks_out, weeks_remaining, is_relapse, started_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))`,
+      args: [player.id, currentYear, result.injuryType, result.severity, result.weeksOut, result.weeksOut, result.isRelapse ? 1 : 0],
+    });
+    stmts.push({ sql: "UPDATE players SET status = 'lesionado' WHERE id = ?", args: [player.id] });
 
     const relapseTxt = result.isRelapse ? ' (recaída)' : '';
-    await logHistory(
-      db,
-      player.id,
-      currentYear,
-      'lesion',
-      `Sufrió una lesión ${result.injuryType.toLowerCase()} de gravedad ${result.severity.toLowerCase()}${relapseTxt}, baja estimada de ${result.weeksOut} semanas.`
-    );
+    stmts.push({
+      sql: `INSERT INTO player_history_events (player_id, season_year, event_type, description) VALUES (?, ?, 'lesion', ?)`,
+      args: [player.id, currentYear, `Sufrió una lesión ${result.injuryType.toLowerCase()} de gravedad ${result.severity.toLowerCase()}${relapseTxt}, baja estimada de ${result.weeksOut} semanas.`],
+    });
   }
+  if (stmts.length) await db.batch(stmts);
 }
 
 async function rollRetirements(db, players, currentYear) {
   const retiredByClub = new Map();
+  const stmts = [];
   for (const player of players) {
     if (player.status === 'retirado') continue;
     const age = ageInSeason(player.birth_date, currentYear);
     if (age == null) continue;
 
     if (rollRetirement({ age, position: player.position, rating: player.rating })) {
-      await db.prepare(
-        `UPDATE players SET status = 'retirado', retired_at_season = ?, retired_age = ? WHERE id = ?`
-      ).run(currentYear, age, player.id);
-
-      await db.prepare(
-        `INSERT INTO transfers (player_id, season_year, from_club_id, to_club_id, type) VALUES (?, ?, ?, NULL, 'retiro')`
-      ).run(player.id, currentYear, player.club_id);
-
-      await logHistory(db, player.id, currentYear, 'retiro', `Se retiró del fútbol profesional a los ${age} años.`);
+      stmts.push({
+        sql: `UPDATE players SET status = 'retirado', retired_at_season = ?, retired_age = ? WHERE id = ?`,
+        args: [currentYear, age, player.id],
+      });
+      stmts.push({
+        sql: `INSERT INTO transfers (player_id, season_year, from_club_id, to_club_id, type) VALUES (?, ?, ?, NULL, 'retiro')`,
+        args: [player.id, currentYear, player.club_id],
+      });
+      stmts.push({
+        sql: `INSERT INTO player_history_events (player_id, season_year, event_type, description) VALUES (?, ?, 'retiro', ?)`,
+        args: [player.id, currentYear, `Se retiró del fútbol profesional a los ${age} años.`],
+      });
 
       if (player.club_id) {
         retiredByClub.set(player.club_id, (retiredByClub.get(player.club_id) || 0) + 1);
       }
     }
   }
+  if (stmts.length) await db.batch(stmts);
   return retiredByClub;
 }
 
+// Genera los juveniles de reemplazo de todos los clubes activos (~30) en 2
+// llamadas batch en vez de hasta 3 round-trips awaiteados por juvenil (mas los
+// que generateName hacia por su cuenta, ver youth.js): se arman todos los
+// juveniles en memoria primero, se insertan todos los jugadores en un batch,
+// y con los lastInsertRowid que devuelve ese batch se insertan en un segundo
+// batch sus filas de transfers/historial.
 async function generateYouthForClubs(db, currentYear, retiredByClub) {
   const clubs = await db.prepare('SELECT id FROM clubs WHERE active = 1').all();
+  const existingNames = new Set(
+    (await db.prepare(`SELECT full_name FROM players WHERE status != 'retirado'`).all()).map((p) => p.full_name)
+  );
+
+  const youths = [];
   for (const club of clubs) {
     const retiredCount = retiredByClub.get(club.id) || 0;
     const count = youthCountForClub(retiredCount);
     for (let i = 0; i < count; i++) {
-      const youth = generateYouthPlayer({ clubId: club.id, seasonYear: currentYear, db });
-      const info = await db.prepare(
-        `INSERT INTO players (club_id, full_name, birth_date, nationality, position, shirt_number, rating, potential, status, is_real_player, created_at_season)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-      ).run(
-        youth.club_id, youth.full_name, youth.birth_date, youth.nationality, youth.position,
-        youth.shirt_number, youth.rating, youth.potential, youth.status, youth.is_real_player, youth.created_at_season
-      );
-      const playerId = info.lastInsertRowid;
-
-      await db.prepare(
-        `INSERT INTO transfers (player_id, season_year, from_club_id, to_club_id, type) VALUES (?, ?, NULL, ?, 'generacion_juvenil')`
-      ).run(playerId, currentYear, club.id);
-
-      await logHistory(db, playerId, currentYear, 'ascenso_juvenil', `Se incorporó al plantel como juvenil (potencial ${youth.potential}).`);
+      youths.push(generateYouthPlayer({ clubId: club.id, seasonYear: currentYear, existingNames }));
     }
   }
+  if (!youths.length) return;
+
+  const insertStmts = youths.map((youth) => ({
+    sql: `INSERT INTO players (club_id, full_name, birth_date, nationality, position, shirt_number, rating, potential, status, is_real_player, created_at_season)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    args: [
+      youth.club_id, youth.full_name, youth.birth_date, youth.nationality, youth.position,
+      youth.shirt_number, youth.rating, youth.potential, youth.status, youth.is_real_player, youth.created_at_season,
+    ],
+  }));
+  const insertResults = await db.batch(insertStmts);
+
+  const followUpStmts = [];
+  youths.forEach((youth, i) => {
+    const playerId = insertResults[i].lastInsertRowid;
+    followUpStmts.push({
+      sql: `INSERT INTO transfers (player_id, season_year, from_club_id, to_club_id, type) VALUES (?, ?, NULL, ?, 'generacion_juvenil')`,
+      args: [playerId, currentYear, youth.club_id],
+    });
+    followUpStmts.push({
+      sql: `INSERT INTO player_history_events (player_id, season_year, event_type, description) VALUES (?, ?, 'ascenso_juvenil', ?)`,
+      args: [playerId, currentYear, `Se incorporó al plantel como juvenil (potencial ${youth.potential}).`],
+    });
+  });
+  await db.batch(followUpStmts);
 }
+
+// Evita que dos avances de temporada corran en paralelo sobre la misma base:
+// con el avance automatico (ver /calendar en src/routes/api.js) esto puede
+// pasar de verdad - el usuario reintentando la pestaña de Calendario, o el
+// chequeo al terminar un partido, mientras el avance anterior (lento,
+// progresa lesiones/retiros/juveniles/mercado de ~30 clubes) todavia estaba
+// corriendo. Sin este guard, un segundo llamado podia alcanzar a leer la
+// temporada ya avanzada pero con las competiciones de la nueva temporada
+// todavia sin generar, y arrancar OTRO avance mas - saltandose una temporada
+// entera sin que el usuario llegara a jugarla.
+let advanceSeasonInFlight = null;
 
 // Avanza una temporada completa: progresa lesiones, genera nuevas, evalua retiros
 // y genera juveniles de reemplazo. Los datos persisten (no hay reinicio de estado).
-async function advanceSeason(db) {
+function advanceSeason(db) {
+  if (advanceSeasonInFlight) return advanceSeasonInFlight;
+  advanceSeasonInFlight = doAdvanceSeason(db).finally(() => {
+    advanceSeasonInFlight = null;
+  });
+  return advanceSeasonInFlight;
+}
+
+async function doAdvanceSeason(db) {
   const previousYear = await getCurrentSeasonYear(db);
   if (previousYear == null) throw new Error('No hay temporada actual configurada.');
   const currentYear = previousYear + 1;
@@ -267,6 +324,42 @@ async function advanceSeason(db) {
 
   const jobOffers = await generateJobOffers(db, currentYear);
 
+  // Pantalla de "balance" de fin de temporada: trofeos propios (solo cuenta
+  // si el campeon/ascendido es el club que dirige el usuario), goleadores del
+  // plantel y reputacion actual con los 4 estamentos del club.
+  const userClub = career ? await db.prepare('SELECT id, name FROM clubs WHERE id = ?').get(career.club_id) : null;
+  const primeraBChampionName = (leagueEvents.promoted || [])[0] || null;
+  const trophiesWon = {
+    primeraA: !!(userClub && leagueEvents.champion === userClub.name),
+    primeraB: !!(userClub && primeraBChampionName === userClub.name),
+    copaChile: !!(userClub && copaChampion === userClub.name),
+    copaLiga: !!(userClub && copaLigaChampion === userClub.name),
+    supercopa: !!(userClub && superCopaChampion === userClub.name),
+  };
+  const wonAnyTitle = Object.values(trophiesWon).some(Boolean);
+
+  const topScorers = userClub
+    ? await db
+        .prepare(
+          `SELECT p.full_name, s.goals, s.assists
+           FROM player_season_stats s
+           JOIN players p ON p.id = s.player_id
+           WHERE s.season_year = ? AND s.club_id = ? AND s.goals > 0
+           ORDER BY s.goals DESC, s.assists DESC
+           LIMIT 5`
+        )
+        .all(previousYear, userClub.id)
+    : [];
+
+  const reputation = career
+    ? {
+        boardConfidence: career.board_confidence,
+        fanSupport: career.fan_support,
+        mediaPressure: career.media_pressure,
+        lockerRoomMorale: career.locker_room_morale,
+      }
+    : null;
+
   await ensureSeasonCompetitions(db, currentYear);
   const nextObjective = await setNextObjective(db, currentYear);
 
@@ -300,6 +393,10 @@ async function advanceSeason(db) {
     board,
     nextObjective,
     jobOffers,
+    trophiesWon,
+    wonAnyTitle,
+    topScorers,
+    reputation,
   };
 }
 

@@ -1,0 +1,17 @@
+Imagenes del Clasico de Colonias
+=================================
+
+Cuando termina un partido entre dos de estos 3 equipos (Audax Italiano,
+Union Espanola, Palestino) y tu diriges a uno de ellos, aparece una pantalla
+especial con el marcador arriba y, debajo, una imagen segun el resultado.
+
+No puedo descargar ni incluir estas imagenes por derechos de autor. Agrega
+tus propios archivos (que ya tengas licencia para usar) con estos nombres
+EXACTOS dentro de esta carpeta (public/clasico-colonias/):
+
+  ganaste.jpg   -> se muestra si ganas el clasico
+  perdiste.jpg  -> se muestra si pierdes el clasico
+
+Si falta algun archivo, simplemente no se muestra imagen (el marcador y el
+resultado en texto se ven igual). En caso de empate no se muestra ninguna
+imagen, solo el marcador.

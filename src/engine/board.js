@@ -167,15 +167,15 @@ async function createCareer(db, clubId, seasonYear) {
   await db
     .prepare(
       `INSERT INTO career (id, club_id, status, hired_season, objective_text, objective_season, objective_kind, objective_target,
-       board_confidence, locker_room_morale, fan_support, manager_reputation, matches_managed,
-       last_reunion_at, last_exigencia_at, last_polemica_at, last_clasico_at, last_hinchada_at, team_identity)
-     VALUES (1, ?, 'activo', ?, ?, ?, ?, ?, 60, 60, 60, 60, 0, 0, 0, 0, 0, 0, NULL)
+       board_confidence, locker_room_morale, fan_support, manager_reputation, media_pressure, matches_managed,
+       last_reunion_at, last_exigencia_at, last_polemica_at, last_clasico_at, last_hinchada_at, last_prensa_at, team_identity)
+     VALUES (1, ?, 'activo', ?, ?, ?, ?, ?, 60, 60, 60, 60, 40, 0, 0, 0, 0, 0, 0, 0, NULL)
      ON CONFLICT(id) DO UPDATE SET club_id=excluded.club_id, status='activo', hired_season=excluded.hired_season,
        objective_text=excluded.objective_text, objective_season=excluded.objective_season,
        objective_kind=excluded.objective_kind, objective_target=excluded.objective_target,
        fired_season=NULL, fired_reason=NULL,
-       board_confidence=60, locker_room_morale=60, fan_support=60, manager_reputation=60, matches_managed=0,
-       last_reunion_at=0, last_exigencia_at=0, last_polemica_at=0, last_clasico_at=0, last_hinchada_at=0, team_identity=NULL`
+       board_confidence=60, locker_room_morale=60, fan_support=60, manager_reputation=60, media_pressure=40, matches_managed=0,
+       last_reunion_at=0, last_exigencia_at=0, last_polemica_at=0, last_clasico_at=0, last_hinchada_at=0, last_prensa_at=0, team_identity=NULL`
     )
     .run(clubId, seasonYear, objective.text, seasonYear, objective.kind, objective.target);
 }
@@ -367,8 +367,8 @@ async function acceptOffer(db, offerId, seasonYear) {
     .prepare(
       `UPDATE career SET club_id = ?, status = 'activo', hired_season = ?, objective_text = ?, objective_season = ?,
        objective_kind = ?, objective_target = ?, fired_season = NULL, fired_reason = NULL,
-       board_confidence = 60, locker_room_morale = 60, fan_support = 60, manager_reputation = 60, matches_managed = 0,
-       last_reunion_at = 0, last_exigencia_at = 0, last_polemica_at = 0, last_clasico_at = 0, last_hinchada_at = 0,
+       board_confidence = 60, locker_room_morale = 60, fan_support = 60, manager_reputation = 60, media_pressure = 40, matches_managed = 0,
+       last_reunion_at = 0, last_exigencia_at = 0, last_polemica_at = 0, last_clasico_at = 0, last_hinchada_at = 0, last_prensa_at = 0,
        team_identity = NULL WHERE id = 1`
     )
     .run(offer.club_id, seasonYear, objective.text, seasonYear, objective.kind, objective.target);

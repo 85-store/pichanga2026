@@ -20,13 +20,13 @@ async function generateCopaDraw(db, seasonYear) {
 
   const clubRows = await db.prepare('SELECT id FROM clubs WHERE active = 1').all();
   const clubs = shuffle(clubRows.map((c) => c.id));
-  const insert = db.prepare(
-    `INSERT INTO copa_matches (season_year, round_name, round_order, slot, home_club_id, away_club_id)
-     VALUES (?, ?, 0, ?, ?, ?)`
-  );
+  const sql = `INSERT INTO copa_matches (season_year, round_name, round_order, slot, home_club_id, away_club_id)
+     VALUES (?, ?, 0, ?, ?, ?)`;
+  const stmts = [];
   for (let i = 0; i < clubs.length / 2; i++) {
-    await insert.run(seasonYear, ROUND_NAMES[0], i, clubs[i * 2], clubs[i * 2 + 1]);
+    stmts.push({ sql, args: [seasonYear, ROUND_NAMES[0], i, clubs[i * 2], clubs[i * 2 + 1]] });
   }
+  if (stmts.length) await db.batch(stmts);
 }
 
 async function getBracket(db, seasonYear) {
@@ -128,7 +128,16 @@ async function simulateNextCopaRound(db, seasonYear) {
 
     const nextRoundOrder = roundOrder + 1;
     if (ROUND_NAMES[nextRoundOrder]) {
-      const winners = results.sort((a, b) => a.slot - b.slot).map((m) => m.winner_club_id);
+      // Los ganadores de la ronda tienen que salir de TODOS sus partidos, no
+      // solo de los que se acaban de jugar en este llamado: si el usuario ya
+      // jugo el suyo antes en vivo (live-match.js), quedaba con played=1 y
+      // afuera de "results" (que solo tiene los recien jugados aqui), y su
+      // club se caia del cuadro aunque hubiera ganado - la Copa Chile nunca le
+      // avanzaba mas alla de la primera ronda.
+      const allRoundMatches = await tx
+        .prepare('SELECT * FROM copa_matches WHERE season_year = ? AND round_order = ? ORDER BY slot')
+        .all(seasonYear, roundOrder);
+      const winners = allRoundMatches.map((m) => m.winner_club_id);
       const insert = tx.prepare(
         `INSERT INTO copa_matches (season_year, round_name, round_order, slot, home_club_id, away_club_id) VALUES (?, ?, ?, ?, ?, ?)`
       );

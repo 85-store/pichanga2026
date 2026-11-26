@@ -263,6 +263,7 @@ function renderRelationsModule() {
       ${relationBarHtml('dirigencia', 'Dirigencia', '🤝', career.board_confidence, 'dirigencia')}
       ${relationBarHtml('hinchada', 'Hinchada', '📣', career.fan_support, 'hinchada')}
       ${relationBarHtml('camarin', 'Camarín', '🏟️', career.locker_room_morale, 'camarin')}
+      ${relationBarHtml('prensa', 'Prensa', '📰', 100 - (career.media_pressure != null ? career.media_pressure : 40), 'prensa')}
     </div>`;
   relationsModule.querySelectorAll('.relation-indicator').forEach((btn) => {
     btn.addEventListener('click', () => {
@@ -317,6 +318,7 @@ function renderCareerBox() {
                <span title="Confianza del directorio">🤝 ${career.board_confidence}</span>
                <span title="Ambiente del vestuario">🏟️ ${career.locker_room_morale}</span>
                <span title="Reputación del entrenador">⭐ ${career.manager_reputation}</span>
+               <span title="Presión mediática">📰 ${career.media_pressure != null ? career.media_pressure : 40}</span>
              </div>`
           : ''
       }
@@ -1204,11 +1206,33 @@ function calendarEntryHtml(entry) {
     </div>`;
 }
 
+// Revisa si al club del usuario no le queda nada pendiente en ninguna de las
+// 4 competiciones nacionales. Si es asi, /calendar ya avanzo la temporada
+// sola (ver el comentario en esa ruta, src/routes/api.js) y devuelve el
+// resultado en seasonAdvance: se muestra el mismo balance/resumen de fin de
+// temporada que antes solo aparecia con el boton manual "Avanzar temporada",
+// sin que el usuario tenga que apretar nada. Se llama tanto al entrar al
+// Calendario como justo al terminar cualquier partido del usuario (ver
+// window.onMatchFinished), que es el momento en que la temporada realmente
+// puede haber quedado sin nada pendiente.
+async function checkSeasonAutoAdvance() {
+  const calendar = await api('/calendar');
+  if (calendar.seasonAdvance) {
+    const result = calendar.seasonAdvance;
+    await Promise.all([loadSeason(), loadClubs(), loadCareer()]);
+    if (window.refreshRightSidebar) window.refreshRightSidebar();
+    renderBalanceScreen(result, () => renderSeasonSummary(result));
+    return { advanced: true, entries: calendar.entries };
+  }
+  return { advanced: false, entries: calendar.entries };
+}
+
 async function renderCalendarTab() {
   mainView.innerHTML = partidosTabBarHtml('calendario') + '<div class="empty-state">Cargando…</div>';
   try {
-    const [entries, tacticsData] = await Promise.all([api('/calendar'), api('/tactics')]);
-    renderCalendarData(entries, tacticsData);
+    const [calendar, tacticsData] = await Promise.all([checkSeasonAutoAdvance(), api('/tactics')]);
+    if (calendar.advanced) return;
+    renderCalendarData(calendar.entries, tacticsData);
   } catch (e) {
     mainView.innerHTML = partidosTabBarHtml('calendario') + `<div class="empty-state">Error al cargar el calendario: ${escapeHtml(e.message)}</div>`;
     wirePartidosTabBar();
@@ -1245,6 +1269,93 @@ function renderCalendarData(entries, tacticsData) {
   renderFormationBoard(document.getElementById('cal-formation-board'), starters, formation);
   document.getElementById('cal-edit-formation-btn').addEventListener('click', () => openTacticsEditor(tacticsData));
   wirePartidosTabBar();
+}
+
+// Pantalla de "balance" de fin de temporada: se muestra primero, antes del
+// resumen detallado (renderSeasonSummary) — trofeos propios (vacios si no se
+// ganó ninguno), goleadores del plantel, reputación con los 4 estamentos del
+// club y un titular + música distinta segun si se ganó algo o no. Musica e
+// imagenes van en public/balance/ (ver balance/LEEME.txt).
+function renderBalanceScreen(result, onContinue) {
+  const wonAny = !!result.wonAnyTitle;
+  const trophiesWon = result.trophiesWon || {};
+  const topScorers = result.topScorers || [];
+  const reputation = result.reputation || {};
+
+  const balanceTrophy = (file, emoji, label, won) => `
+    <div class="trophy-card ${won ? '' : 'not-won'}">
+      <img src="trophies/${file}" alt="${escapeHtml(label)}" onerror="this.outerHTML='<span class=\\'trophy-emoji\\'>${emoji}</span>'" />
+      <div class="trophy-label">${label}</div>
+      <div class="trophy-winner">${won ? '🏆 Ganado' : '—'}</div>
+    </div>`;
+
+  const trophyRow = [
+    balanceTrophy('primera-a.png', '🏆', 'Primera A', trophiesWon.primeraA),
+    balanceTrophy('primera-b.png', '🥇', 'Primera B', trophiesWon.primeraB),
+    balanceTrophy('copa-chile.png', '🏅', 'Copa Chile', trophiesWon.copaChile),
+    balanceTrophy('copa-liga.png', '🎗️', 'Copa de la Liga', trophiesWon.copaLiga),
+    balanceTrophy('supercopa.png', '⭐', 'Supercopa', trophiesWon.supercopa),
+  ].join('');
+
+  const repBar = (label, value) => {
+    const v = value == null ? 60 : value;
+    return `
+      <div class="rep-row">
+        <span class="rep-label">${label}</span>
+        <div class="rep-bar"><div class="rep-fill" style="width:${v}%"></div></div>
+        <span class="rep-value">${v}</span>
+      </div>`;
+  };
+
+  const musicFile = wonAny ? 'balance/campeon.mp3' : 'balance/nada.mp3';
+  const imgFile = wonAny ? 'balance/campeon.jpg' : 'balance/nada.jpg';
+
+  const backdrop = document.createElement('div');
+  backdrop.className = 'summary-modal-backdrop';
+  backdrop.innerHTML = `
+    <div class="summary-modal balance-modal ${wonAny ? 'balance-won' : 'balance-none'}">
+      <img class="balance-bg-img" src="${imgFile}" alt="" onerror="this.style.display='none'">
+      <h2 class="balance-banner">${wonAny ? '¡DALE CAMPEÓN!' : 'NADAPLETE COMPLETADO'}</h2>
+      <div class="trophy-row">${trophyRow}</div>
+      <div class="summary-section">
+        <h4>Goleadores del plantel</h4>
+        ${
+          topScorers.length
+            ? `<ul>${topScorers.map((s) => `<li>⚽ ${escapeHtml(s.full_name)} — ${s.goals} ${s.goals === 1 ? 'gol' : 'goles'}</li>`).join('')}</ul>`
+            : '<div class="empty-state">Nadie anotó esta temporada.</div>'
+        }
+      </div>
+      <div class="summary-section balance-reputation">
+        <h4>Reputación</h4>
+        ${repBar('Directiva', reputation.boardConfidence)}
+        ${repBar('Hinchada', reputation.fanSupport)}
+        ${repBar('Medios', reputation.mediaPressure)}
+        ${repBar('Camarín', reputation.lockerRoomMorale)}
+      </div>
+      <button class="close-btn" id="balance-continue-btn">Continuar</button>
+    </div>`;
+  modalRoot.appendChild(backdrop);
+
+  let audio = null;
+  try {
+    audio = new Audio(musicFile);
+    audio.volume = 0.7;
+    audio.play().catch(() => {});
+  } catch {
+    // sin soporte de audio: la pantalla sigue funcionando igual
+  }
+
+  const finish = () => {
+    if (audio) {
+      audio.pause();
+      audio.currentTime = 0;
+    }
+    window.closeModal(backdrop, onContinue);
+  };
+  document.getElementById('balance-continue-btn').addEventListener('click', finish);
+  backdrop.addEventListener('click', (e) => {
+    if (e.target === backdrop) finish();
+  });
 }
 
 function renderSeasonSummary(result) {
@@ -1343,7 +1454,7 @@ advanceBtn.addEventListener('click', async () => {
     await loadClubs();
     await loadCareer();
     if (window.refreshRightSidebar) window.refreshRightSidebar();
-    renderSeasonSummary(result);
+    renderBalanceScreen(result, () => renderSeasonSummary(result));
     if (state.activeClubId) openClub(state.activeClubId);
   } catch (e) {
     alert('Error al avanzar temporada: ' + e.message);
@@ -1359,7 +1470,14 @@ document.addEventListener('click', (e) => {
   window.openMatchViewer(btn.dataset.watchKind, Number(btn.dataset.watchId));
 });
 
-window.onMatchFinished = function () {
+window.onMatchFinished = async function () {
+  // Se revisa primero si con este partido se acabo todo lo pendiente del
+  // usuario: si la temporada se avanzo sola, ya se esta mostrando el balance
+  // de fin de temporada (ver checkSeasonAutoAdvance) y no corresponde seguir
+  // con el refresco normal de partido (la vista de partidos/sidebar/eventos
+  // de directorio quedan obsoletos apenas cambia la temporada).
+  const { advanced } = await checkSeasonAutoAdvance();
+  if (advanced) return;
   if (state.activeComp === 'partidos') renderPartidosView(state.partidosTab);
   if (window.refreshRightSidebar) window.refreshRightSidebar();
   if (window.checkCareerEvents) window.checkCareerEvents();

@@ -1,5 +1,6 @@
 const express = require('express');
 const path = require('path');
+const fs = require('fs');
 const { requireAuth } = require('./auth/firebase-admin');
 const registry = require('./db/registry');
 const buildApiRouter = require('./routes/api');
@@ -24,10 +25,26 @@ async function resolveGameDb(req, res, next) {
   }
 }
 
+const BG_PHOTOS_EXTS = new Set(['.jpg', '.jpeg', '.png', '.webp', '.avif']);
+
 function buildApp() {
   const app = express();
   app.use(express.json());
   app.use(express.static(path.join(__dirname, '..', 'public')));
+
+  // Lista las fotos que el usuario haya puesto en public/imagenes de fondos/
+  // para el fondo rotativo del menu de inicio (sin convencion de nombres: se
+  // usa lo que haya, con cualquier nombre y cualquiera de estas extensiones).
+  // Es publica (sin requireAuth) porque esas fotos ya son estaticas publicas
+  // via express.static de todos modos.
+  app.get('/bg-photos.json', (req, res) => {
+    const dir = path.join(__dirname, '..', 'public', 'imagenes de fondos');
+    fs.readdir(dir, (err, files) => {
+      if (err) return res.json([]);
+      const photos = files.filter((f) => BG_PHOTOS_EXTS.has(path.extname(f).toLowerCase()));
+      res.json(photos.map((f) => `imagenes de fondos/${f}`));
+    });
+  });
 
   app.use('/api/saves', requireAuth(), buildSavesRouter());
   app.use('/api/match', requireAuth(), resolveGameDb, buildMatchRouter());

@@ -20,14 +20,18 @@ async function generateSeasonFixtures(db, seasonYear) {
     if (clubs.length < 2) continue;
 
     const rounds = generateRoundRobin(clubs);
-    const insert = db.prepare(
-      `INSERT INTO fixtures (season_year, division, jornada, home_club_id, away_club_id) VALUES (?, ?, ?, ?, ?)`
-    );
+    const sql = `INSERT INTO fixtures (season_year, division, jornada, home_club_id, away_club_id) VALUES (?, ?, ?, ?, ?)`;
+    // Un solo batch para todo el calendario de la division (cientos de
+    // partidos) en vez de un .run() awaiteado por partido: contra una base
+    // remota de Turso eso era la mayor parte del tiempo que tardaba crear
+    // una partida nueva.
+    const stmts = [];
     for (let idx = 0; idx < rounds.length; idx++) {
       for (const [home, away] of rounds[idx]) {
-        await insert.run(seasonYear, division, idx + 1, home, away);
+        stmts.push({ sql, args: [seasonYear, division, idx + 1, home, away] });
       }
     }
+    if (stmts.length) await db.batch(stmts);
   }
 }
 

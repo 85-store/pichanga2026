@@ -103,15 +103,21 @@ async function getMarketStatus(db) {
   const club = await db.prepare('SELECT * FROM clubs WHERE id = ?').get(career.club_id);
   const window = await getMarketWindow(db, seasonYear, club.division);
 
-  if (window) await ensureBudgetTopup(db, club, seasonYear, window);
-  const freshClub = await db.prepare('SELECT * FROM clubs WHERE id = ?').get(career.club_id);
+  // Solo se vuelve a pedir el club si ensureBudgetTopup pudo haber cambiado el
+  // presupuesto; sin ventana abierta el SELECT de arriba ya sirve, evitando
+  // un segundo round-trip idéntico en cada carga de esta pantalla.
+  let finalClub = club;
+  if (window) {
+    await ensureBudgetTopup(db, club, seasonYear, window);
+    finalClub = await db.prepare('SELECT * FROM clubs WHERE id = ?').get(career.club_id);
+  }
 
   return {
     open: window != null,
     window,
     seasonYear,
-    budget: freshClub.budget,
-    clubId: freshClub.id,
+    budget: finalClub.budget,
+    clubId: finalClub.id,
   };
 }
 

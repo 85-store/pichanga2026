@@ -34,20 +34,23 @@ async function importFile(db, filePath) {
     return { inserted: 0, skipped: 0 };
   }
 
-  let inserted = 0;
-  let skipped = 0;
+  // Una sola consulta para saber que jugadores ya existen, y un solo batch
+  // para insertar los nuevos: contra una base remota de Turso, awaitear un
+  // exists+insert por jugador (cientos por club) es un viaje de red aparte
+  // cada vez y tarda minutos; asi son 2 viajes de red por archivo de plantel.
+  const existingRows = await db
+    .prepare(`SELECT full_name FROM players WHERE club_id = ? AND is_real_player = 1`)
+    .all(club.id);
+  const existingNames = new Set(existingRows.map((r) => r.full_name));
 
-  const insertStmt = db.prepare(
-    `INSERT INTO players
+  const insertSql = `INSERT INTO players
       (club_id, full_name, birth_date, nationality, position, shirt_number, rating, potential, status, is_real_player, source_url, created_at_season)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'activo', 1, ?, ?)`
-  );
-  const existsStmt = db.prepare(
-    `SELECT id FROM players WHERE club_id = ? AND full_name = ? AND is_real_player = 1`
-  );
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'activo', 1, ?, ?)`;
 
+  const stmts = [];
+  let skipped = 0;
   for (const p of raw.players) {
-    if (await existsStmt.get(club.id, p.full_name)) {
+    if (existingNames.has(p.full_name)) {
       skipped++;
       continue;
     }
@@ -57,20 +60,25 @@ async function importFile(db, filePath) {
     const rating = estimateRating({ age, baseLevel: raw.base_level ?? 1 });
     const potential = estimatePotential(rating, age);
 
-    await insertStmt.run(
-      club.id,
-      p.full_name,
-      birthDate,
-      p.nationality || 'Chile',
-      position,
-      p.shirt_number ?? null,
-      rating,
-      potential,
-      p.source_url || raw.source_url || null,
-      seasonYear
-    );
-    inserted++;
+    stmts.push({
+      sql: insertSql,
+      args: [
+        club.id,
+        p.full_name,
+        birthDate,
+        p.nationality || 'Chile',
+        position,
+        p.shirt_number ?? null,
+        rating,
+        potential,
+        p.source_url || raw.source_url || null,
+        seasonYear,
+      ],
+    });
   }
+
+  if (stmts.length) await db.batch(stmts);
+  const inserted = stmts.length;
 
   console.log(`  ${raw.club}: +${inserted} jugadores nuevos, ${skipped} ya existentes.`);
   return { inserted, skipped };
@@ -87,6 +95,63 @@ async function importAllRosters(db, dir) {
     totalInserted += r.inserted;
   }
   return totalInserted;
+}
+
+// Variante para una base recien provisionada (un usuario/slot nuevo en la
+// Fase 2): como nunca puede tener jugadores previos, se salta por completo la
+// consulta de "ya existe" y se insertan TODOS los planteles en un unico
+// batch - en vez de 2 viajes de red por archivo (~64 para 32 clubes), son
+// solo 2 en total (un select de clubes + un batch de inserts), lo que baja
+// el tiempo de crear una partida nueva de minutos a segundos.
+async function importAllRostersFast(db, dir) {
+  const rosterDir = dir || path.join(__dirname, '..', 'data', 'rosters');
+  const files = fs.existsSync(rosterDir)
+    ? fs.readdirSync(rosterDir).filter((f) => f.endsWith('.json')).map((f) => path.join(rosterDir, f))
+    : [];
+  if (!files.length) return 0;
+
+  const seasonYear = (await getCurrentSeasonYear(db)) || 2026;
+  const clubs = await db.prepare('SELECT id, name FROM clubs').all();
+  const clubIdByName = new Map(clubs.map((c) => [c.name, c.id]));
+
+  const insertSql = `INSERT INTO players
+      (club_id, full_name, birth_date, nationality, position, shirt_number, rating, potential, status, is_real_player, source_url, created_at_season)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'activo', 1, ?, ?)`;
+
+  const stmts = [];
+  for (const f of files) {
+    const raw = JSON.parse(fs.readFileSync(f, 'utf8'));
+    const clubId = clubIdByName.get(raw.club);
+    if (!clubId) {
+      console.error(`  [ERROR] Club no encontrado en la BD: "${raw.club}" (archivo ${f})`);
+      continue;
+    }
+    for (const p of raw.players) {
+      const birthDate = p.birth_date || birthDateFromAge(p.age, seasonYear);
+      const age = ageInSeason(birthDate, seasonYear) ?? p.age ?? null;
+      const position = normalizePosition(p.position);
+      const rating = estimateRating({ age, baseLevel: raw.base_level ?? 1 });
+      const potential = estimatePotential(rating, age);
+      stmts.push({
+        sql: insertSql,
+        args: [
+          clubId,
+          p.full_name,
+          birthDate,
+          p.nationality || 'Chile',
+          position,
+          p.shirt_number ?? null,
+          rating,
+          potential,
+          p.source_url || raw.source_url || null,
+          seasonYear,
+        ],
+      });
+    }
+  }
+
+  if (stmts.length) await db.batch(stmts);
+  return stmts.length;
 }
 
 async function main() {
@@ -112,7 +177,7 @@ async function main() {
   db.close();
 }
 
-module.exports = { importFile, importAllRosters };
+module.exports = { importFile, importAllRosters, importAllRostersFast };
 
 if (require.main === module) {
   main().catch((err) => {

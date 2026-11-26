@@ -63,26 +63,27 @@ function loadCrests() {
 async function seedClubs(db) {
   const crests = loadCrests();
 
-  const insert = db.prepare(
-    `INSERT INTO clubs (name, division, city, stadium, crest_url, active)
+  const sql = `INSERT INTO clubs (name, division, city, stadium, crest_url, active)
      VALUES (?, ?, ?, ?, ?, 1)
      ON CONFLICT(name) DO UPDATE SET division=excluded.division, city=excluded.city,
-       stadium=excluded.stadium, crest_url=excluded.crest_url`
-  );
+       stadium=excluded.stadium, crest_url=excluded.crest_url`;
 
   const PRIMERA_A = Object.keys(CLUB_META).slice(0, 16);
   const PRIMERA_B = Object.keys(CLUB_META).slice(16);
+  const names = [...PRIMERA_A, ...PRIMERA_B];
 
-  let count = 0;
-  for (const name of [...PRIMERA_A, ...PRIMERA_B]) {
+  // Un solo batch en vez de un .run() awaiteado por club: contra una base
+  // remota de Turso cada .run() es un viaje de red aparte, y 32 secuenciales
+  // se notan; en un batch es un solo viaje.
+  const stmts = names.map((name) => {
     const meta = CLUB_META[name];
     const division = PRIMERA_A.includes(name) ? 'Primera A' : 'Primera B';
     const crestUrl = CREST_OVERRIDES[name] || crests.get(name) || null;
-    await insert.run(name, division, meta.city, meta.stadium, crestUrl);
-    count++;
-  }
+    return { sql, args: [name, division, meta.city, meta.stadium, crestUrl] };
+  });
+  await db.batch(stmts);
 
-  return count;
+  return names.length;
 }
 
 async function main() {

@@ -100,6 +100,20 @@ function crest(url, size) {
   return `<img src="${escHtml(url)}" style="width:${size}px;height:${size}px;object-fit:contain" onerror="this.style.visibility='hidden'">`;
 }
 
+// Grupos de clasicos rivales de Chile: si ambos equipos del partido caen en
+// el mismo grupo, el usuario (que siempre dirige a uno de los dos en un
+// partido que puede ver) esta jugando ese clasico. Cada grupo tiene su propia
+// carpeta de imagenes de resultado (public/<folder>/ganaste.jpg y
+// perdiste.jpg), porque cada clasico es una rivalidad distinta.
+const CLASICO_GROUPS = [
+  { clubs: new Set(['Universidad de Chile', 'Colo-Colo', 'Universidad Católica']), folder: 'clasico' },
+  { clubs: new Set(['Audax Italiano', 'Unión Española', 'Palestino']), folder: 'clasico-colonias' },
+];
+
+function findClasicoGroup(home, away) {
+  return CLASICO_GROUPS.find((g) => g.clubs.has(home.name) && g.clubs.has(away.name)) || null;
+}
+
 window.openMatchViewer = async function openMatchViewer(kind, id) {
   if (window.pauseGameMusicForMatch) window.pauseGameMusicForMatch();
   mx = {
@@ -112,6 +126,7 @@ window.openMatchViewer = async function openMatchViewer(kind, id) {
     timer: null,
     controlSide: 'home',
     subOutId: null,
+    tickInFlight: false,
   };
 
   matchRoot.innerHTML = `<div class="match-overlay-backdrop"><div class="match-overlay">Cargando partido…</div></div>`;
@@ -316,6 +331,10 @@ function renderMatchShell() {
             <h4>Táctica — ${escHtml(mx.controlSide === 'home' ? (home.shortName || home.name) : (away.shortName || away.name))}</h4>
             <div id="tactics-form"></div>
           </div>
+          <div class="inspire-panel">
+            <h4>Inspirar jugador</h4>
+            <div id="inspire-form"></div>
+          </div>
           <div class="subs-panel">
             <h4>Cambios</h4>
             <div id="subs-form"></div>
@@ -343,6 +362,7 @@ function renderMatchShell() {
   });
   renderTacticsForm();
   renderSubsForm();
+  renderInspireForm();
   renderStats();
 
   if (window.startCrowdAmbience) window.startCrowdAmbience();
@@ -363,6 +383,16 @@ function togglePlay() {
 
 async function tick() {
   if (!mx || mx.view.finished) return;
+  // setInterval no espera a que termine el tick anterior: con latencia de
+  // red (Turso) un tick podia seguir en el aire cuando el timer disparaba el
+  // siguiente, mandando varios /advance superpuestos para el mismo minuto.
+  // El servidor los encola y los resuelve uno por uno, pero el cliente
+  // terminaba procesando varias respuestas tardias en fila (reabriendo el
+  // modal de entretiempo una y otra vez) - de ahi que se sintiera pegado o
+  // lento justo al llegar al entretiempo. Si ya hay un tick en curso, este
+  // se salta en vez de apilarse.
+  if (mx.tickInFlight) return;
+  mx.tickInFlight = true;
   try {
     const res = await matchApi(mx.kind, mx.id, '/advance', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ minutes: 1 }),
@@ -372,6 +402,8 @@ async function tick() {
     clearInterval(mx.timer);
     mx.playing = false;
     alert('Error simulando el partido: ' + e.message);
+  } finally {
+    mx.tickInFlight = false;
   }
 }
 
@@ -406,6 +438,7 @@ function handleAdvanceResult(res, skipAnimation) {
   }
   if (res.view) mx.view = res.view;
   renderStats();
+  renderInspireForm();
 
   if (res.finished) {
     clearInterval(mx.timer);
@@ -873,7 +906,99 @@ function renderSubsForm() {
   });
 }
 
+function renderInspireForm() {
+  const box = document.getElementById('inspire-form');
+  if (!box || !mx.view) return;
+  const side = mx.view[mx.controlSide];
+
+  if (mx.view.inspiredUsed) {
+    const inspired = side.lineup.find((p) => p.inspired) || side.bench.find((p) => p.inspired);
+    box.innerHTML = inspired
+      ? `<div class="empty-note">⭐ Ya inspiraste a <strong>${escHtml(inspired.full_name)}</strong> en este partido.</div>`
+      : '<div class="empty-note">Ya usaste tu inspiración en este partido.</div>';
+    return;
+  }
+
+  const onField = side.lineup.filter((p) => p.onField);
+  if (!onField.length) {
+    box.innerHTML = '<div class="empty-note">No hay jugadores en cancha.</div>';
+    return;
+  }
+  box.innerHTML = `
+    <div class="sub-bench-list">
+      ${onField.map((p) => `<button class="ctl-btn inspire-btn" data-pid="${p.id}" data-name="${escHtml(p.full_name)}">⭐ ${escHtml(p.full_name)} (${p.position})</button>`).join('')}
+    </div>`;
+  box.querySelectorAll('.inspire-btn').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      box.querySelectorAll('.inspire-btn').forEach((b) => (b.disabled = true));
+      try {
+        mx.view = await matchApi(mx.kind, mx.id, '/inspire', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ playerId: btn.dataset.pid }),
+        });
+        renderInspireForm();
+        renderSubsForm();
+      } catch (e) {
+        alert('No se pudo inspirar al jugador: ' + e.message);
+        box.querySelectorAll('.inspire-btn').forEach((b) => (b.disabled = false));
+      }
+    });
+  });
+}
+
 function showSummary(summary) {
+  const { home, away } = mx.view;
+  const clasicoGroup = findClasicoGroup(home, away);
+  if (clasicoGroup) {
+    showClasicoResult(summary, clasicoGroup, () => showRegularSummary(summary));
+    return;
+  }
+  showRegularSummary(summary);
+}
+
+// Pantalla especial al terminar un Clasico (cualquiera de los CLASICO_GROUPS
+// de arriba): marcador grande con escudos y goles arriba, e imagen de
+// victoria o derrota debajo segun el resultado del club que diriges, tomada
+// de la carpeta propia de ese grupo.
+function showClasicoResult(summary, clasicoGroup, onContinue) {
+  const overlay = document.querySelector('.match-overlay');
+  const { home, away } = mx.view;
+  const side = mx.controlSide;
+  const managedGoals = side === 'home' ? summary.homeGoals : summary.awayGoals;
+  const rivalGoals = side === 'home' ? summary.awayGoals : summary.homeGoals;
+  const won = managedGoals > rivalGoals;
+  const lost = managedGoals < rivalGoals;
+  const resultImg = won ? `${clasicoGroup.folder}/ganaste.jpg` : lost ? `${clasicoGroup.folder}/perdiste.jpg` : null;
+  const resultLabel = won ? '¡GANASTE EL CLÁSICO!' : lost ? 'PERDISTE EL CLÁSICO' : 'EMPATE EN EL CLÁSICO';
+  const scorerLine = (s) => `${escHtml(s.scorer)}${s.assist ? ' (asist. ' + escHtml(s.assist) + ')' : ''}`;
+
+  const backdrop = document.createElement('div');
+  backdrop.className = 'summary-modal-backdrop';
+  backdrop.innerHTML = `
+    <div class="summary-modal clasico-modal ${won ? 'clasico-win' : lost ? 'clasico-lose' : 'clasico-draw'}">
+      <div class="clasico-scoreboard">
+        <div class="clasico-team">${crest(home.crestUrl, 48)}<span>${escHtml(home.shortName || home.name)}</span></div>
+        <div class="clasico-score">${summary.homeGoals} - ${summary.awayGoals}</div>
+        <div class="clasico-team">${crest(away.crestUrl, 48)}<span>${escHtml(away.shortName || away.name)}</span></div>
+      </div>
+      ${summary.decidedByPenalties ? '<div class="sub">Definido por penales</div>' : ''}
+      <div class="clasico-goals">
+        ${summary.scorers.home.map((s) => `<div>⚽ ${escHtml(home.shortName)}: ${scorerLine(s)}</div>`).join('')}
+        ${summary.scorers.away.map((s) => `<div>⚽ ${escHtml(away.shortName)}: ${scorerLine(s)}</div>`).join('')}
+        ${!summary.scorers.home.length && !summary.scorers.away.length ? '<div class="empty-state">Sin goles.</div>' : ''}
+      </div>
+      <h2 class="clasico-result-label">${resultLabel}</h2>
+      ${resultImg ? `<img class="clasico-result-img" src="${resultImg}" alt="${escHtml(resultLabel)}" onerror="this.style.display='none'">` : ''}
+      <button class="close-btn" id="clasico-continue-btn">Ver resumen completo</button>
+    </div>`;
+  overlay.appendChild(backdrop);
+  document.getElementById('clasico-continue-btn').addEventListener('click', () => {
+    backdrop.remove();
+    onContinue();
+  });
+}
+
+function showRegularSummary(summary) {
   const overlay = document.querySelector('.match-overlay');
   const backdrop = document.createElement('div');
   backdrop.className = 'summary-modal-backdrop';

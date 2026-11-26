@@ -13,7 +13,7 @@ de esta carpeta (public/music/):
   03-ishowspeed-champions-wc2026.mp3   -> IShowSpeed - Champions WC2026
   04-time-to-pretend.mp3               -> Time to Pretend
   05-no-me-arrepiento-de-este-amor.mp3 -> No me arrepiento de este amor
-  06-yo-x-ti-tu-x-mi.mp3               -> Yo x ti, tu x mi
+  06-amar-azul-tomo-vino-y-cerveza.mp3 -> Amar Azul - Tomo Vino y Cerveza
 
 El reproductor esta en la pantalla de titulo (menu principal): tiene boton de
 play/pausa, anterior/siguiente, y al terminar una cancion pasa automaticamente

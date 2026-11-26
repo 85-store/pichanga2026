@@ -26,22 +26,22 @@ async function ensureCopaLigaDraw(db, seasonYear) {
   const clubs = shuffle(clubRows.map((c) => c.id));
   if (clubs.length < GROUP_NAMES.length * 2) return; // no hay suficientes equipos (caso degenerado)
 
-  const insertGroup = db.prepare('INSERT INTO copa_liga_groups (season_year, group_name, club_id) VALUES (?, ?, ?)');
-  const insertMatch = db.prepare(
-    `INSERT INTO copa_liga_matches (season_year, stage, group_name, home_club_id, away_club_id) VALUES (?, 'grupos', ?, ?, ?)`
-  );
+  const groupSql = 'INSERT INTO copa_liga_groups (season_year, group_name, club_id) VALUES (?, ?, ?)';
+  const matchSql = `INSERT INTO copa_liga_matches (season_year, stage, group_name, home_club_id, away_club_id) VALUES (?, 'grupos', ?, ?, ?)`;
 
+  const stmts = [];
   const perGroup = Math.floor(clubs.length / GROUP_NAMES.length);
   for (let gi = 0; gi < GROUP_NAMES.length; gi++) {
     const groupName = GROUP_NAMES[gi];
     const groupClubs = clubs.slice(gi * perGroup, gi * perGroup + perGroup);
-    for (const clubId of groupClubs) await insertGroup.run(seasonYear, groupName, clubId);
+    for (const clubId of groupClubs) stmts.push({ sql: groupSql, args: [seasonYear, groupName, clubId] });
 
     const rounds = generateRoundRobin(groupClubs);
     for (const round of rounds) {
-      for (const [home, away] of round) await insertMatch.run(seasonYear, groupName, home, away);
+      for (const [home, away] of round) stmts.push({ sql: matchSql, args: [seasonYear, groupName, home, away] });
     }
   }
+  if (stmts.length) await db.batch(stmts);
 }
 
 async function getGroupClubs(db, seasonYear, groupName) {
@@ -54,19 +54,12 @@ async function getGroupClubs(db, seasonYear, groupName) {
     .all(seasonYear, groupName);
 }
 
-async function getGroupStandings(db, seasonYear, groupName) {
-  const clubs = await getGroupClubs(db, seasonYear, groupName);
+function computeGroupStandings(clubs, playedMatches) {
   const table = new Map(
     clubs.map((c) => [c.club_id, { club_id: c.club_id, name: c.name, crest_url: c.crest_url, pj: 0, g: 0, e: 0, p: 0, gf: 0, gc: 0, dif: 0, pts: 0 }])
   );
 
-  const played = await db
-    .prepare(
-      `SELECT * FROM copa_liga_matches WHERE season_year = ? AND stage = 'grupos' AND group_name = ? AND played = 1`
-    )
-    .all(seasonYear, groupName);
-
-  for (const m of played) {
+  for (const m of playedMatches) {
     const home = table.get(m.home_club_id);
     const away = table.get(m.away_club_id);
     if (!home || !away) continue;
@@ -82,6 +75,64 @@ async function getGroupStandings(db, seasonYear, groupName) {
   for (const r of rows) r.dif = r.gf - r.gc;
   rows.sort((a, b) => b.pts - a.pts || b.dif - a.dif || b.gf - a.gf || a.name.localeCompare(b.name));
   return rows;
+}
+
+async function getGroupStandings(db, seasonYear, groupName) {
+  const clubs = await getGroupClubs(db, seasonYear, groupName);
+  const played = await db
+    .prepare(
+      `SELECT * FROM copa_liga_matches WHERE season_year = ? AND stage = 'grupos' AND group_name = ? AND played = 1`
+    )
+    .all(seasonYear, groupName);
+  return computeGroupStandings(clubs, played);
+}
+
+// Trae clubes, partidos y tabla de los 4 grupos en 2 consultas (una con
+// IN implicito via JOIN sin filtro de grupo, otra igual para los partidos) en
+// vez de 3 round-trips awaiteados por grupo (clubes + tabla + partidos x4 =
+// 12 round-trips contra Turso solo para abrir la pantalla de Copa de la Liga).
+async function getAllGroupsOverview(db, seasonYear) {
+  const allClubs = await db
+    .prepare(
+      `SELECT g.group_name, c.id as club_id, c.name, c.crest_url
+       FROM copa_liga_groups g JOIN clubs c ON c.id = g.club_id
+       WHERE g.season_year = ?
+       ORDER BY g.group_name`
+    )
+    .all(seasonYear);
+
+  const allMatches = await db
+    .prepare(
+      `SELECT gm.*, hc.name as home_name, hc.crest_url as home_crest, hc.short_name as home_short,
+              ac.name as away_name, ac.crest_url as away_crest, ac.short_name as away_short
+       FROM copa_liga_matches gm
+       LEFT JOIN clubs hc ON hc.id = gm.home_club_id
+       LEFT JOIN clubs ac ON ac.id = gm.away_club_id
+       WHERE gm.season_year = ? AND gm.stage = 'grupos'
+       ORDER BY gm.group_name, gm.id`
+    )
+    .all(seasonYear);
+
+  const clubsByGroup = new Map();
+  for (const { group_name, ...club } of allClubs) {
+    if (!clubsByGroup.has(group_name)) clubsByGroup.set(group_name, []);
+    clubsByGroup.get(group_name).push(club);
+  }
+  const matchesByGroup = new Map();
+  for (const m of allMatches) {
+    if (!matchesByGroup.has(m.group_name)) matchesByGroup.set(m.group_name, []);
+    matchesByGroup.get(m.group_name).push(m);
+  }
+
+  const groups = [];
+  for (const name of GROUP_NAMES) {
+    const clubs = clubsByGroup.get(name) || [];
+    if (!clubs.length) continue;
+    const matches = matchesByGroup.get(name) || [];
+    const standings = computeGroupStandings(clubs, matches.filter((m) => m.played === 1));
+    groups.push({ name, clubs, standings, matches });
+  }
+  return groups;
 }
 
 async function isGroupStageComplete(db, seasonYear) {
@@ -335,6 +386,7 @@ module.exports = {
   ensureCopaLigaDraw,
   getGroupClubs,
   getGroupStandings,
+  getAllGroupsOverview,
   isGroupStageComplete,
   simulateGroupStage,
   playCopaLigaMatch,

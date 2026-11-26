@@ -38,15 +38,16 @@ const NATIONALITY_WEIGHTS = [
 
 // Evita, dentro de lo razonable, generar dos veces el mismo nombre completo
 // entre jugadores que siguen activos (no necesariamente perfecto con pools
-// chicos, pero reduce bastante las coincidencias visibles).
-function generateName(db) {
+// chicos, pero reduce bastante las coincidencias visibles). existingNames: un
+// Set con los nombres activos ya en uso, traido una sola vez por quien genera
+// los juveniles de toda la liga en un mismo avance de temporada - antes esto
+// era una consulta awaiteada por cada intento de nombre (hasta 8) por cada
+// juvenil generado, cientos de round-trips extra contra Turso en un avance de
+// temporada con ~30 clubes.
+function generateName(existingNames) {
   for (let i = 0; i < 8; i++) {
     const name = `${pick(FIRST_NAMES)} ${pick(LAST_NAMES)}`;
-    if (!db) return name;
-    const clash = db
-      .prepare(`SELECT 1 FROM players WHERE full_name = ? AND status != 'retirado' LIMIT 1`)
-      .get(name);
-    if (!clash) return name;
+    if (!existingNames || !existingNames.has(name)) return name;
   }
   return `${pick(FIRST_NAMES)} ${pick(LAST_NAMES)}`;
 }
@@ -58,15 +59,18 @@ function generatePotential() {
   return randInt(52, 69); // potencial normal
 }
 
-function generateYouthPlayer({ clubId, seasonYear, db }) {
+function generateYouthPlayer({ clubId, seasonYear, existingNames }) {
   const potential = generatePotential();
   const age = randInt(16, 20);
   // A menor edad, mas lejos esta del potencial; a mayor edad, mas cerca.
   const gapMax = Math.max(5, 25 - (age - 16) * 4);
   const rating = Math.max(35, potential - randInt(5, gapMax));
 
+  const full_name = generateName(existingNames);
+  if (existingNames) existingNames.add(full_name);
+
   return {
-    full_name: generateName(db),
+    full_name,
     birth_date: `${seasonYear - age}-06-15`,
     nationality: weightedPick(NATIONALITY_WEIGHTS),
     position: weightedPick(POSITION_WEIGHTS),

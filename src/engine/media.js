@@ -141,8 +141,8 @@ async function insertComment(db, { seasonYear, kind, headline, borghiText, tezan
 
 // Partido terminado: solo genera comentario si el club gestionado jugo este
 // partido (aislado - nunca debe poder romper el registro de un partido).
-async function onMatchFinishedMedia(db, seasonYear, homeClubId, awayClubId, result, matchLabel) {
-  const career = await boardModule().getCareer(db);
+async function onMatchFinishedMedia(db, seasonYear, homeClubId, awayClubId, result, matchLabel, career) {
+  career = career !== undefined ? career : await boardModule().getCareer(db);
   if (!career || career.status !== 'activo' || !career.club_id) return;
   if (career.club_id !== homeClubId && career.club_id !== awayClubId) return;
   // Las opiniones no se generan en cada partido: solo a veces, como pasaria

@@ -21,8 +21,13 @@ function declineChanceByAge(age) {
 // resultTag: 'win' | 'draw' | 'loss'
 // moraleModifier: ajuste opcional y acotado segun el ambiente del vestuario
 // (sistema de acontecimientos), { growthDelta, declineDelta }.
-async function applyPerformanceProgress(db, player, { resultTag, scored, assisted, cardType, age }, moraleModifier) {
-  if (player.rating >= player.potential && !scored) return; // ya tocó techo, sin un golazo no sube más
+// Sin efectos de lado (no toca la base): devuelve el nuevo rating, o null si
+// no cambia, para que el llamador junte todos los cambios de un partido en un
+// solo batch en vez de un UPDATE awaiteado por jugador (hasta ~30 round-trips
+// seguidos a Turso justo al terminar el partido - el motivo de que se sintiera
+// "pegado" unos segundos justo en ese momento).
+function computeRatingDelta(player, { resultTag, scored, assisted, cardType, age }, moraleModifier) {
+  if (player.rating >= player.potential && !scored) return null; // ya tocó techo, sin un golazo no sube más
 
   let growth = growthChanceByAge(age);
   let decline = declineChanceByAge(age);
@@ -42,12 +47,12 @@ async function applyPerformanceProgress(db, player, { resultTag, scored, assiste
   if (player.rating < player.potential && chance(growth)) delta = 1;
   else if (chance(decline)) delta = -1;
 
-  if (delta === 0) return;
+  if (delta === 0) return null;
 
   const newRating = Math.max(35, Math.min(player.potential, player.rating + delta));
-  if (newRating === player.rating) return;
+  if (newRating === player.rating) return null;
 
-  await db.prepare('UPDATE players SET rating = ? WHERE id = ?').run(newRating, player.id);
+  return newRating;
 }
 
-module.exports = { applyPerformanceProgress };
+module.exports = { computeRatingDelta };

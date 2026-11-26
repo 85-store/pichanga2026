@@ -9,7 +9,7 @@ const SCHEMA_PATH = path.join(__dirname, 'schema.sql');
 // columna, una migracion de tabla, o se cambie BUDGET_TOPUP_VERSION) - es lo
 // que hace que ese guardado vuelva a pasar por toda la cadena de migracion
 // una vez mas. Si no se sube, un guardado que ya esta al dia se la salta.
-const SCHEMA_VERSION = 1;
+const SCHEMA_VERSION = 2;
 
 async function columnExists(db, table, column) {
   const rows = await db.prepare(`PRAGMA table_info(${table})`).all();
@@ -155,7 +155,21 @@ async function migrate(db) {
       ALTER TABLE career ADD COLUMN last_hinchada_at INTEGER NOT NULL DEFAULT 0;
     `);
   }
+  if (!(await columnExists(db, 'career', 'media_pressure'))) {
+    await db.exec(`
+      ALTER TABLE career ADD COLUMN media_pressure INTEGER NOT NULL DEFAULT 40;
+      ALTER TABLE career ADD COLUMN last_prensa_at INTEGER NOT NULL DEFAULT 0;
+    `);
+  }
+  // El orden importa: migrateCareerEventsKind reconstruye la tabla con el
+  // esquema viejo (sin written_response) si venia de antes de 'hinchada', asi
+  // que el ALTER ADD COLUMN de written_response va despues de esa y antes de
+  // migrateCareerEventsKindPrensa (que si necesita seleccionarla al reconstruir).
   await migrateCareerEventsKind(db);
+  if (!(await columnExists(db, 'career_events', 'written_response'))) {
+    await db.exec('ALTER TABLE career_events ADD COLUMN written_response TEXT');
+  }
+  await migrateCareerEventsKindPrensa(db);
   await migrateSentOffersCounterOffers(db);
   await backfillClubBudgets(db);
   await backfillClubTactics(db);
@@ -215,6 +229,37 @@ async function migrateCareerEventsKind(db) {
     );
     INSERT INTO career_events (id, season_year, match_count, kind, subtype, title, description, options, status, chosen_option, result_text, created_at, resolved_at)
       SELECT id, season_year, match_count, kind, subtype, title, description, options, status, chosen_option, result_text, created_at, resolved_at FROM career_events_old;
+    DROP TABLE career_events_old;
+    CREATE INDEX IF NOT EXISTS idx_career_events_status ON career_events(status, id DESC);
+  `);
+}
+
+// Misma historia que migrateCareerEventsKind, pero para el tipo 'prensa'
+// (declaraciones de periodistas/comentaristas) agregado despues: el CHECK
+// viejo no lo admite, asi que hay que reconstruir la tabla otra vez.
+async function migrateCareerEventsKindPrensa(db) {
+  const row = await db.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'career_events'").get();
+  if (!row || !row.sql || row.sql.includes("'prensa'")) return;
+  await db.exec(`
+    ALTER TABLE career_events RENAME TO career_events_old;
+    CREATE TABLE career_events (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      season_year INTEGER NOT NULL,
+      match_count INTEGER NOT NULL,
+      kind TEXT NOT NULL CHECK (kind IN ('reunion', 'exigencia', 'polemica', 'clasico', 'hinchada', 'prensa')),
+      subtype TEXT,
+      title TEXT NOT NULL,
+      description TEXT NOT NULL,
+      options TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'pendiente' CHECK (status IN ('pendiente', 'resuelto')),
+      chosen_option TEXT,
+      written_response TEXT,
+      result_text TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      resolved_at TEXT
+    );
+    INSERT INTO career_events (id, season_year, match_count, kind, subtype, title, description, options, status, chosen_option, written_response, result_text, created_at, resolved_at)
+      SELECT id, season_year, match_count, kind, subtype, title, description, options, status, chosen_option, written_response, result_text, created_at, resolved_at FROM career_events_old;
     DROP TABLE career_events_old;
     CREATE INDEX IF NOT EXISTS idx_career_events_status ON career_events(status, id DESC);
   `);

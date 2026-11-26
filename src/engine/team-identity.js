@@ -68,11 +68,15 @@ async function setTeamIdentity(db, identity) {
 
 // Identidad del club dirigido por el usuario para este partido: el sistema
 // solo aplica efectos al plantel del usuario, nunca a los rivales IA.
-async function getManagedIdentity(db, clubId) {
+// career: opcional, carrera ya cargada por el llamador (evita un round-trip
+// repetido a Turso cuando esta misma info ya se pidio una vez para el
+// partido). undefined => la pide esta funcion; null es un valor valido
+// ("ya se pidio, no hay carrera activa").
+async function getManagedIdentity(db, clubId, career) {
   if (!db || clubId == null) return null;
-  const career = await boardModule().getCareer(db);
-  if (!career || career.club_id !== clubId || !career.team_identity) return null;
-  return career.team_identity;
+  const resolvedCareer = career !== undefined ? career : await boardModule().getCareer(db);
+  if (!resolvedCareer || resolvedCareer.club_id !== clubId || !resolvedCareer.team_identity) return null;
+  return resolvedCareer.team_identity;
 }
 
 // Ajuste estatico de ataque/defensa segun identidad y si el equipo es

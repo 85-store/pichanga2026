@@ -12,8 +12,7 @@ const { getBracket, isCopaComplete, simulateNextCopaRound, getCopaChampion } = r
 const {
   GROUP_NAMES: COPA_LIGA_GROUP_NAMES,
   ensureCopaLigaDraw,
-  getGroupClubs,
-  getGroupStandings,
+  getAllGroupsOverview,
   isGroupStageComplete,
   isCopaLigaComplete,
   advanceCopaLiga,
@@ -25,7 +24,7 @@ const { getCareer, getPendingOffers, acceptOffer, declineOffer } = require('../e
 const { listIdentities, setTeamIdentity } = require('../engine/team-identity');
 const { getSavedLineup, saveLineup } = require('../engine/tactics');
 const { getNextManagedMatch, getUpcomingCalendar } = require('../engine/next-match');
-const { getPendingEvents, getEventHistory, resolveEvent } = require('../engine/career-events');
+const { getPendingEvents, getEventHistory, resolveEvent, resolveEventWithText } = require('../engine/career-events');
 const { onSigningCompletedMedia, getComments, listPersonas } = require('../engine/media');
 const {
   getMarketStatus,
@@ -242,6 +241,24 @@ function buildApiRouter() {
       if (await isCopaComplete(db, seasonYear)) {
         return res.status(400).json({ error: 'La Copa Chile de esta temporada ya terminó.' });
       }
+      // A diferencia de "Simular jornada" de liga (que excluye el partido del
+      // club dirigido), aqui no se puede excluir un partido sin romper el
+      // avance del cuadro (la ronda entera necesita sus resultados para armar
+      // la siguiente). Por eso se bloquea en vez de arrastrar: si no, el boton
+      // le jugaba el partido propio con el motor rapido sin que el usuario lo
+      // viera, y de paso disparaba reuniones/acontecimientos de la dirigencia
+      // por un partido que el usuario nunca supo que se jugo.
+      const career = await getCareer(db);
+      if (career && career.club_id) {
+        const pendingOwn = await db
+          .prepare(
+            `SELECT id FROM copa_matches WHERE season_year = ? AND played = 0 AND (home_club_id = ? OR away_club_id = ?) LIMIT 1`
+          )
+          .get(seasonYear, career.club_id, career.club_id);
+        if (pendingOwn) {
+          return res.status(400).json({ error: 'Debes jugar antes el partido pendiente de tu club en la Copa Chile.' });
+        }
+      }
       const result = await simulateNextCopaRound(db, seasonYear);
       res.json(result);
     } catch (err) {
@@ -258,24 +275,7 @@ function buildApiRouter() {
       // temporada). ensureCopaLigaDraw no hace nada si ya existe, asi que es
       // seguro llamarlo aqui para "sanar" esas partidas antiguas.
       await ensureCopaLigaDraw(db, seasonYear);
-      const groups = [];
-      for (const name of COPA_LIGA_GROUP_NAMES) {
-        const clubs = await getGroupClubs(db, seasonYear, name);
-        if (!clubs.length) continue;
-        const standings = await getGroupStandings(db, seasonYear, name);
-        const matches = await db
-          .prepare(
-            `SELECT gm.*, hc.name as home_name, hc.crest_url as home_crest, hc.short_name as home_short,
-                    ac.name as away_name, ac.crest_url as away_crest, ac.short_name as away_short
-             FROM copa_liga_matches gm
-             LEFT JOIN clubs hc ON hc.id = gm.home_club_id
-             LEFT JOIN clubs ac ON ac.id = gm.away_club_id
-             WHERE gm.season_year = ? AND gm.stage = 'grupos' AND gm.group_name = ?
-             ORDER BY gm.id`
-          )
-          .all(seasonYear, name);
-        groups.push({ name, clubs, standings, matches });
-      }
+      const groups = await getAllGroupsOverview(db, seasonYear);
       const knockout = await db
         .prepare(
           `SELECT cm.*, hc.name as home_name, hc.crest_url as home_crest, hc.short_name as home_short,
@@ -310,6 +310,22 @@ function buildApiRouter() {
       const seasonYear = await getCurrentSeasonYear(db);
       if (await isCopaLigaComplete(db, seasonYear)) {
         return res.status(400).json({ error: 'La Copa de la Liga de esta temporada ya terminó.' });
+      }
+      // Mismo motivo que en /copa/simulate-round: sin este bloqueo, el boton
+      // de "Simular siguiente etapa" le jugaba de golpe (con el motor rapido)
+      // el partido propio del grupo o la llave, sin que el usuario lo viera,
+      // y encima disparaba acontecimientos de la dirigencia por partidos que
+      // nunca jugo el mismo.
+      const career = await getCareer(db);
+      if (career && career.club_id) {
+        const pendingOwn = await db
+          .prepare(
+            `SELECT id FROM copa_liga_matches WHERE season_year = ? AND played = 0 AND (home_club_id = ? OR away_club_id = ?) LIMIT 1`
+          )
+          .get(seasonYear, career.club_id, career.club_id);
+        if (pendingOwn) {
+          return res.status(400).json({ error: 'Debes jugar antes el partido pendiente de tu club en la Copa de la Liga.' });
+        }
       }
       const result = await advanceCopaLiga(db, seasonYear);
       res.json(result);
@@ -399,7 +415,22 @@ function buildApiRouter() {
   router.get('/calendar', async (req, res) => {
     try {
       const db = req.db;
-      res.json(await getUpcomingCalendar(db));
+      let entries = await getUpcomingCalendar(db);
+      let seasonAdvance = null;
+      // Si al club que dirige el usuario no le queda nada pendiente en ninguna
+      // de las 4 competiciones (getUpcomingCalendar vacio), la temporada ya
+      // termino para el usuario aunque queden partidos de otros clubes sin
+      // resolver (esos los termina igual advanceSeason, como ya hacia el
+      // boton "Avanzar temporada" manual). Se avanza sola, sin requerir que
+      // el usuario apriete el boton.
+      if (!entries.length) {
+        const career = await getCareer(db);
+        if (career && career.club_id && career.status !== 'despedido') {
+          seasonAdvance = await advanceSeason(db);
+          entries = await getUpcomingCalendar(db);
+        }
+      }
+      res.json({ entries, seasonAdvance });
     } catch (err) {
       res.status(500).json({ error: err.message });
     }
@@ -488,8 +519,11 @@ function buildApiRouter() {
   router.post('/career-events/:id/resolve', async (req, res) => {
     try {
       const db = req.db;
-      const { optionId } = req.body || {};
-      const result = await resolveEvent(db, Number(req.params.id), optionId);
+      const { optionId, text } = req.body || {};
+      const result =
+        text != null && String(text).trim()
+          ? await resolveEventWithText(db, Number(req.params.id), text)
+          : await resolveEvent(db, Number(req.params.id), optionId);
       res.json(result);
     } catch (err) {
       res.status(400).json({ error: err.message });

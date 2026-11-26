@@ -12,7 +12,7 @@ const MENU_PLAYLIST = [
   { artist: 'IShowSpeed', title: 'Champions WC2026', file: 'music/03-ishowspeed-champions-wc2026.mp3' },
   { artist: 'MGMT', title: 'Time to Pretend', file: 'music/04-time-to-pretend.mp3' },
   { artist: 'Desconocido', title: 'No me arrepiento de este amor', file: 'music/05-no-me-arrepiento-de-este-amor.mp3' },
-  { artist: 'Desconocido', title: 'Yo x ti, tu x mi', file: 'music/06-yo-x-ti-tu-x-mi.mp3' },
+  { artist: 'Amar Azul', title: 'Tomo Vino y Cerveza', file: 'music/06-amar-azul-tomo-vino-y-cerveza.mp3' },
 ];
 
 const menuAudio = new Audio();
@@ -205,8 +205,7 @@ function renderTitleScreen() {
     <div class="title-screen">
       <div class="title-bg" id="title-bg"></div>
       <div class="title-foreground">
-        <div class="title-logo">PICHANGA <span>26</span></div>
-        <div class="title-sub">ACORE GXMES</div>
+        <div class="title-logo">PICHANGA</div>
         <div class="title-buttons">
           <button class="title-btn" id="title-continue">Continuar</button>
           <button class="title-btn" id="title-load">Cargar</button>
@@ -221,7 +220,7 @@ function renderTitleScreen() {
         </div>
       </div>
     </div>`;
-  renderTitleBackground();
+  startBgCarousel();
 
   // No existe mas un "continuar" implicito: desde la Fase 2 cada usuario tiene
   // varios huecos propios (ya no una unica partida global), asi que "Continuar"
@@ -340,6 +339,7 @@ async function openNewGameModal(slot, slotInfo) {
         <optgroup label="Primera B">${groupByDivision('Primera B')}</optgroup>
       </select>
       <div class="title-modal-actions">
+        <button class="close-btn" id="new-back">← Volver</button>
         <button class="close-btn" id="new-cancel">Cancelar</button>
         <button class="title-btn small" id="new-confirm">Comenzar</button>
       </div>
@@ -349,6 +349,7 @@ async function openNewGameModal(slot, slotInfo) {
   backdrop.addEventListener('click', (e) => {
     if (e.target === backdrop) window.closeModal(backdrop);
   });
+  document.getElementById('new-back').addEventListener('click', () => window.closeModal(backdrop, () => openSlotPicker('new')));
   document.getElementById('new-cancel').addEventListener('click', () => window.closeModal(backdrop));
   document.getElementById('new-confirm').addEventListener('click', async () => {
     const clubId = Number(document.getElementById('new-club-select').value);
@@ -372,52 +373,102 @@ async function openNewGameModal(slot, slotInfo) {
   });
 }
 
-// Fotos de fondo del menu (sin etiqueta ni nombre encima). El usuario las
-// copia directamente en public/menu-photos/ con estos nombres exactos (ver
-// LEEME.txt ahi); si falta alguna simplemente no se muestra.
-const MENU_PHOTOS = ['foto1.jpg', 'foto2.jpg', 'foto3.jpg', 'foto4.jpg', 'foto5.jpg', 'foto6.jpg'];
-
-async function renderTitleBackground() {
-  let clubs = [];
-  try {
-    clubs = await titleApi('/template-clubs');
-  } catch (e) {
-    clubs = [];
-  }
-
-  const crestsHtml = clubs
-    .filter((c) => c.crest_url)
-    .map((c, i) => {
-      const size = 130 + ((i * 41) % 110);
-      const rot = ((i * 53) % 40) - 20;
-      const dx = 18 + ((i * 17) % 26);
-      const dy = 14 + ((i * 23) % 20);
-      const dur = 10 + ((i * 7) % 9);
-      const delay = (i * 0.3).toFixed(2);
-      const style = `width:${size}px;height:${size}px;--rot:${rot}deg;--dx:${dx}px;--dy:${dy}px;--dur:${dur}s;--delay:${delay}s;--op:0.16`;
-      return `<img class="bg-crest" src="${escapeTitleHtml(c.crest_url)}" alt="" style="${style}" onerror="this.style.display='none'">`;
-    })
-    .join('');
-
-  const photosHtml = MENU_PHOTOS.map((file, i) => {
-    const size = 170 + ((i * 31) % 90);
-    const rot = ((i * 29) % 16) - 8;
-    const dx = 16 + ((i * 19) % 24);
-    const dy = 12 + ((i * 13) % 18);
-    const dur = 11 + ((i * 5) % 8);
-    const delay = (i * 0.35 + 0.2).toFixed(2);
-    const style = `width:${size}px;height:${size}px;--rot:${rot}deg;--dx:${dx}px;--dy:${dy}px;--dur:${dur}s;--delay:${delay}s;--op:0.32`;
-    return `<img class="bg-photo" src="menu-photos/${file}" alt="" style="${style}" onerror="this.style.display='none'">`;
-  }).join('');
-
-  const bg = document.getElementById('title-bg');
-  if (!bg) return;
-  bg.innerHTML = `<div class="bg-crest-field">${crestsHtml}</div><div class="bg-photo-field">${photosHtml}</div>`;
-}
-
 function enterGame() {
+  stopBgCarousel();
   titleRoot.innerHTML = '';
   window.startGame();
+}
+
+// ---- Fondo cinematografico del menu: fotos reales de jugadores/estadios/
+// momentos historicos, en rotacion con fundido (crossfade) cada 5s. El
+// usuario pone sus propias fotos en public/imagenes de fondos/, con
+// cualquier nombre y formato (jpg/png/webp/avif) - el servidor las lista
+// (GET /bg-photos.json) en vez de exigir nombres fijos. Si la carpeta esta
+// vacia, queda solo el degradado oscuro de siempre.
+let bgWorkingPhotos = [];
+let bgShuffleQueue = [];
+let bgPrevIndex = -1;
+let bgIntervalId = null;
+let bgPreloadedImg = null;
+
+function probeBgImage(src) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve(src);
+    img.onerror = () => resolve(null);
+    img.src = encodeURI(src);
+  });
+}
+
+// Mismo patron de "barajar sin repetir toda la vuelta" que usa la playlist
+// del menu (ver refillShuffleQueue mas arriba), para que las fotos roten en
+// un orden distinto cada vez en vez de ciclar siempre en el mismo orden.
+function refillBgShuffleQueue() {
+  bgShuffleQueue = bgWorkingPhotos.map((_, i) => i);
+  for (let i = bgShuffleQueue.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [bgShuffleQueue[i], bgShuffleQueue[j]] = [bgShuffleQueue[j], bgShuffleQueue[i]];
+  }
+  if (bgShuffleQueue.length > 1 && bgShuffleQueue[bgShuffleQueue.length - 1] === bgPrevIndex) {
+    [bgShuffleQueue[0], bgShuffleQueue[bgShuffleQueue.length - 1]] = [bgShuffleQueue[bgShuffleQueue.length - 1], bgShuffleQueue[0]];
+  }
+}
+
+function nextBgIndex() {
+  if (!bgShuffleQueue.length) refillBgShuffleQueue();
+  bgPrevIndex = bgShuffleQueue.pop();
+  return bgPrevIndex;
+}
+
+function stopBgCarousel() {
+  if (bgIntervalId) {
+    clearInterval(bgIntervalId);
+    bgIntervalId = null;
+  }
+}
+
+async function startBgCarousel() {
+  stopBgCarousel();
+  const root = document.getElementById('title-bg');
+  if (!root) return;
+
+  let candidates = [];
+  try {
+    const res = await fetch('/bg-photos.json');
+    candidates = res.ok ? await res.json() : [];
+  } catch (e) {
+    candidates = [];
+  }
+
+  const probed = await Promise.all(candidates.map(probeBgImage));
+  bgWorkingPhotos = probed.filter(Boolean);
+  // No se pego nadie al titulo mientras tanto (puede pasar logout/login).
+  if (!document.getElementById('title-bg') || !bgWorkingPhotos.length) return;
+
+  root.innerHTML = `<div class="title-bg-slide active" id="bg-slide-a"></div><div class="title-bg-slide" id="bg-slide-b"></div><div class="title-bg-overlay"></div>`;
+  const slideA = document.getElementById('bg-slide-a');
+  const slideB = document.getElementById('bg-slide-b');
+  let showingA = true;
+
+  slideA.style.backgroundImage = `url("${encodeURI(bgWorkingPhotos[nextBgIndex()])}")`;
+
+  const preloadNext = () => {
+    const url = bgWorkingPhotos[nextBgIndex()];
+    bgPreloadedImg = new Image();
+    bgPreloadedImg.src = encodeURI(url);
+    return url;
+  };
+  let nextUrl = preloadNext();
+
+  bgIntervalId = setInterval(() => {
+    const incoming = showingA ? slideB : slideA;
+    const outgoing = showingA ? slideA : slideB;
+    incoming.style.backgroundImage = `url("${encodeURI(nextUrl)}")`;
+    incoming.classList.add('active');
+    outgoing.classList.remove('active');
+    showingA = !showingA;
+    nextUrl = preloadNext();
+  }, 5000);
 }
 
 // No tiene sentido mostrar el titulo (y menos pegarle a /api/saves) antes de
