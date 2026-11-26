@@ -270,16 +270,20 @@ async function advanceSeason(db) {
   await ensureSeasonCompetitions(db, currentYear);
   const nextObjective = await setNextObjective(db, currentYear);
 
+  // El resumen de fin de temporada es sobre "mi plantel": si se mostraran los
+  // eventos de los ~30 clubes de la liga sin filtrar, una lesion/retiro/juvenil
+  // de cualquier otro club apareceria mezclado en la lista y daria la falsa
+  // impresion de que el propio plantel se desmorono.
   const summary = await db
     .prepare(
       `SELECT e.event_type, e.description, p.full_name, p.id as player_id, c.name as club_name
        FROM player_history_events e
        JOIN players p ON p.id = e.player_id
        LEFT JOIN clubs c ON c.id = p.club_id
-       WHERE e.season_year = ?
+       WHERE e.season_year = ? AND p.club_id = ?
        ORDER BY e.event_type, p.full_name`
     )
-    .all(currentYear);
+    .all(currentYear, career ? career.club_id : null);
 
   return {
     previousYear,

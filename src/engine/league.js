@@ -103,7 +103,12 @@ async function playMatch(db, seasonYear, fixtureId, homeClubId, awayClubId) {
   return { fixtureId, homeClubId, awayClubId, homeGoals: result.homeGoals, awayGoals: result.awayGoals };
 }
 
-async function simulateJornada(db, seasonYear) {
+// excludeClubId: el club que dirige el usuario nunca se resuelve con el motor
+// rapido via este botón de "Simular jornada" — sus partidos los tiene que
+// jugar en vivo (la misma regla que ya exige assertPlaysInOrder en
+// match-api.js). Sin esto, este atajo le "robaba" el partido al usuario sin
+// que lo jugara, dejandolo sin poder verlo despues.
+async function simulateJornada(db, seasonYear, excludeClubId) {
   const results = { jornada: null, matches: [] };
   const tx = await db.transaction('write');
   try {
@@ -112,9 +117,10 @@ async function simulateJornada(db, seasonYear) {
       if (jornada == null) continue;
       if (results.jornada == null) results.jornada = jornada;
       const fixtures = await tx
-        .prepare('SELECT * FROM fixtures WHERE season_year = ? AND division = ? AND jornada = ?')
+        .prepare('SELECT * FROM fixtures WHERE season_year = ? AND division = ? AND jornada = ? AND played = 0')
         .all(seasonYear, division, jornada);
       for (const f of fixtures) {
+        if (excludeClubId != null && (f.home_club_id === excludeClubId || f.away_club_id === excludeClubId)) continue;
         const match = await playMatch(tx, seasonYear, f.id, f.home_club_id, f.away_club_id);
         results.matches.push({ ...match, division, jornada });
       }

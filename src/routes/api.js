@@ -211,7 +211,8 @@ function buildApiRouter() {
       if (await isLeagueComplete(db, seasonYear)) {
         return res.status(400).json({ error: 'La liga de esta temporada ya terminó.' });
       }
-      const result = await simulateJornada(db, seasonYear);
+      const career = await getCareer(db);
+      const result = await simulateJornada(db, seasonYear, career ? career.club_id : null);
       res.json(result);
     } catch (err) {
       res.status(500).json({ error: err.message });

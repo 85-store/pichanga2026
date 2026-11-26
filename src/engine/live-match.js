@@ -925,7 +925,12 @@ function maybeAdvanceHalf(session) {
     // finalize() recurre al desenlace aleatorio de siempre.
     return true;
   }
-  return false;
+  // Fin del tiempo reglamentario sin tanda de penales pendiente (liga, o
+  // cruce de eliminacion ya decidido): hay que frenar el bucle de advance()
+  // aqui tambien. Si no, un "Saltar al final" (minutes:100 en un solo
+  // pedido) seguia simulando minutos fantasma de mas hasta agotar esos 100,
+  // inflando el marcador bien por encima de lo que da un partido real.
+  return true;
 }
 
 async function advance(uid, db, kind, id, minutes) {
