@@ -204,6 +204,7 @@ function renderTitleScreen() {
   titleRoot.innerHTML = `
     <div class="title-screen">
       <div class="title-bg" id="title-bg"></div>
+      <button class="music-btn" id="user-menu-btn" style="position:absolute; top:16px; right:16px; z-index:5;" title="Mi cuenta">👤</button>
       <div class="title-foreground">
         <div class="title-logo">PICHANGA</div>
         <div class="title-buttons">
@@ -238,6 +239,139 @@ function renderTitleScreen() {
   document.getElementById('music-next-btn').addEventListener('click', nextMenuTrack);
   document.querySelector('.music-bar .sfx-toggle-btn').addEventListener('click', () => { if (window.toggleSfx) window.toggleSfx(); });
   if (window.refreshSfxButtons) window.refreshSfxButtons();
+
+  document.getElementById('user-menu-btn').addEventListener('click', openUserMenu);
+}
+
+function openUserMenu() {
+  const backdrop = document.createElement('div');
+  backdrop.className = 'title-modal-backdrop';
+  backdrop.innerHTML = `
+    <div class="title-modal" style="width:280px; text-align:center;">
+      <h2>Mi cuenta</h2>
+      <div class="title-modal-actions" style="flex-direction:column; gap:10px;">
+        <button class="title-btn small" id="user-menu-edit-btn" style="width:100%;">Modificar datos personales</button>
+        <button class="title-btn small danger" id="user-menu-logout-btn" style="width:100%;">Cerrar sesión</button>
+      </div>
+      <button class="close-btn" id="user-menu-close-btn">Cancelar</button>
+    </div>`;
+  document.body.appendChild(backdrop);
+
+  backdrop.addEventListener('click', (e) => {
+    if (e.target === backdrop) window.closeModal(backdrop);
+  });
+  document.getElementById('user-menu-close-btn').addEventListener('click', () => window.closeModal(backdrop));
+  document.getElementById('user-menu-edit-btn').addEventListener('click', () => {
+    window.closeModal(backdrop, () => openEditProfileModal());
+  });
+  document.getElementById('user-menu-logout-btn').addEventListener('click', () => {
+    window.closeModal(backdrop, () => window.signOutUser());
+  });
+}
+
+async function openEditProfileModal() {
+  const backdrop = document.createElement('div');
+  backdrop.className = 'title-modal-backdrop';
+  backdrop.innerHTML = `
+    <div class="title-modal" style="width:340px;">
+      <h2>Mis datos</h2>
+      <label class="field-label">Nombres</label>
+      <input type="text" id="edit-nombres" />
+      <label class="field-label">Apellidos</label>
+      <input type="text" id="edit-apellidos" />
+      <label class="field-label">Teléfono</label>
+      <input type="tel" id="edit-telefono" />
+      <label class="field-label">TikTok (opcional)</label>
+      <input type="text" id="edit-tiktok" placeholder="@usuario" />
+      <label class="field-label">Instagram (opcional)</label>
+      <input type="text" id="edit-instagram" placeholder="@usuario" />
+      <label class="field-label">Equipo favorito</label>
+      <select id="edit-club-favorito"><option value="">Cargando…</option></select>
+      <label class="field-label">Equipo rival</label>
+      <select id="edit-club-rival"><option value="">Cargando…</option></select>
+      <div class="warn-text" id="edit-profile-error" style="display:none"></div>
+      <div class="title-modal-actions" style="justify-content:space-between">
+        <button class="close-btn" id="edit-profile-cancel-btn">Cancelar</button>
+        <button class="title-btn small" id="edit-profile-save-btn">Guardar</button>
+      </div>
+    </div>`;
+  document.body.appendChild(backdrop);
+
+  const errorEl = document.getElementById('edit-profile-error');
+  const showError = (msg) => {
+    errorEl.textContent = msg;
+    errorEl.style.display = '';
+  };
+  const favSel = document.getElementById('edit-club-favorito');
+  const rivalSel = document.getElementById('edit-club-rival');
+
+  const [profile, clubs] = await Promise.all([
+    window.apiFetch('/api/saves/profile').then((r) => r.json()),
+    window.apiFetch('/api/saves/template-clubs').then((r) => r.json()),
+  ]);
+
+  const byDivision = {};
+  (clubs || []).forEach((c) => {
+    (byDivision[c.division] = byDivision[c.division] || []).push(c);
+  });
+  const optionsHtml = Object.keys(byDivision)
+    .map(
+      (div) =>
+        `<optgroup label="${escapeTitleHtml(div)}">${byDivision[div]
+          .map((c) => `<option value="${c.id}">${escapeTitleHtml(c.name)}</option>`)
+          .join('')}</optgroup>`
+    )
+    .join('');
+  favSel.innerHTML = `<option value="">Elegí un equipo</option>${optionsHtml}`;
+  rivalSel.innerHTML = `<option value="">Elegí un equipo</option>${optionsHtml}`;
+
+  if (profile) {
+    document.getElementById('edit-nombres').value = profile.nombres || '';
+    document.getElementById('edit-apellidos').value = profile.apellidos || '';
+    document.getElementById('edit-telefono').value = profile.telefono || '';
+    document.getElementById('edit-tiktok').value = profile.tiktok || '';
+    document.getElementById('edit-instagram').value = profile.instagram || '';
+    if (profile.equipo_favorito_id) favSel.value = String(profile.equipo_favorito_id);
+    if (profile.equipo_rival_id) rivalSel.value = String(profile.equipo_rival_id);
+  }
+
+  backdrop.addEventListener('click', (e) => {
+    if (e.target === backdrop) window.closeModal(backdrop);
+  });
+  document.getElementById('edit-profile-cancel-btn').addEventListener('click', () => window.closeModal(backdrop));
+  document.getElementById('edit-profile-save-btn').addEventListener('click', async () => {
+    const nombres = document.getElementById('edit-nombres').value.trim();
+    const apellidos = document.getElementById('edit-apellidos').value.trim();
+    const telefono = document.getElementById('edit-telefono').value.trim();
+    const tiktok = document.getElementById('edit-tiktok').value.trim();
+    const instagram = document.getElementById('edit-instagram').value.trim();
+    const equipoFavoritoId = favSel.value;
+    const equipoRivalId = rivalSel.value;
+
+    if (!nombres || !apellidos || !telefono) return showError('Completá todos los datos obligatorios.');
+    if (!equipoFavoritoId || !equipoRivalId) return showError('Elegí ambos equipos.');
+    if (equipoFavoritoId === equipoRivalId) return showError('El rival no puede ser el mismo que tu equipo favorito.');
+
+    const btn = document.getElementById('edit-profile-save-btn');
+    btn.disabled = true;
+    btn.textContent = 'Guardando…';
+    try {
+      const res = await window.apiFetch('/api/saves/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nombres, apellidos, telefono, tiktok, instagram, equipoFavoritoId, equipoRivalId }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || 'No se pudo guardar.');
+      }
+      window.closeModal(backdrop);
+    } catch (e) {
+      showError(e.message);
+      btn.disabled = false;
+      btn.textContent = 'Guardar';
+    }
+  });
 }
 
 async function openSlotPicker(mode) {

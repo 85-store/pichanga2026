@@ -27,6 +27,14 @@ function buildSavesRouter() {
 
   // Perfil del usuario (datos de registro + equipo favorito/rival), guardado
   // en la base meta tras crear la cuenta en Firebase.
+  router.get('/profile', async (req, res) => {
+    try {
+      res.json((await registry.getUserProfile(req.uid)) || null);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   router.post('/profile', async (req, res) => {
     try {
       const { nombres, apellidos, telefono, tiktok, instagram, equipoFavoritoId, equipoRivalId } = req.body || {};
