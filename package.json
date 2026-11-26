@@ -18,5 +18,10 @@
     "dotenv": "^18.0.10",
     "express": "^4.21.0",
     "firebase-admin": "^14.5.1"
+  },
+  "overrides": {
+    "jwks-rsa": {
+      "jose": "^4.15.9"
+    }
   }
 }
