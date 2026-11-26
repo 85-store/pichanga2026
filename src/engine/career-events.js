@@ -674,14 +674,14 @@ async function onMatchFinished(db, seasonYear, homeClubId, awayClubId, result, c
       career.last_prensa_at
     );
 
-  // Maximo 3 acontecimientos por partido: con clasico + reunion/exigencia +
+  // Maximo 2 acontecimientos por partido: con clasico + reunion/exigencia +
   // polemica + hinchada + prensa pudiendo coincidir los 5 en el mismo partido,
   // el usuario quedaba resolviendo una fila larga de popups uno tras otro
   // cada vez que terminaba de jugar. Se recortan los menos prioritarios (el
   // orden en que se evaluaron arriba ya va de mas a menos importante:
   // clasico/reunion primero, hinchada/prensa al final) y quedan pendientes
   // para el proximo partido en el que vuelvan a cumplirse sus condiciones.
-  const cappedEvents = createdEvents.slice(0, 3);
+  const cappedEvents = createdEvents.slice(0, 2);
 
   const inserted = [];
   for (const evt of cappedEvents) {
