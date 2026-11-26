@@ -34,16 +34,34 @@ async function simulateRestOfRound(db, kind, id, seasonYear, managedClubId) {
   } else if (kind === 'copa-liga') {
     const match = await db.prepare('SELECT * FROM copa_liga_matches WHERE id = ?').get(id);
     if (!match || match.stage !== 'grupos') return;
+    // Los partidos de grupo no tienen un numero de jornada propio en la
+    // tabla, pero se insertaron ronda por ronda (ver ensureCopaLigaDraw), asi
+    // que el orden de id dentro del mismo grupo SI refleja la jornada: se
+    // reconstruye agrupando de a (cupos del grupo / 2) partidos consecutivos.
+    // Antes esto tomaba TODOS los partidos pendientes del grupo sin filtrar
+    // por ronda, asi que el resto de los clubes terminaba de golpe toda la
+    // fase de grupos con el primer partido del usuario, mientras el
+    // usuario seguia jugando jornada por jornada - quedaban muy adelantados.
+    const groupMatches = await db
+      .prepare(`SELECT id FROM copa_liga_matches WHERE season_year = ? AND stage = 'grupos' AND group_name = ? ORDER BY id ASC`)
+      .all(match.season_year, match.group_name);
+    const groupSizeRow = await db
+      .prepare('SELECT COUNT(*) as c FROM copa_liga_groups WHERE season_year = ? AND group_name = ?')
+      .get(match.season_year, match.group_name);
+    const perRound = Math.max(1, Math.floor((groupSizeRow.c || 4) / 2));
+    const idx = groupMatches.findIndex((m) => m.id === id);
+    const roundStart = Math.floor(idx / perRound) * perRound;
+    const roundIds = groupMatches.slice(roundStart, roundStart + perRound).map((m) => m.id);
     // Nunca se simulan de golpe los partidos propios del usuario: deben
     // quedar pendientes y jugarse interactivamente, uno a la vez, cuando les
     // toque en el Calendario. Solo se adelantan (motor rapido) los partidos
-    // del mismo grupo que NO involucran al club del usuario.
+    // de la misma ronda que NO involucran al club del usuario.
     const siblings = await db
       .prepare(
-        `SELECT * FROM copa_liga_matches WHERE season_year = ? AND stage = 'grupos' AND group_name = ? AND played = 0 AND id != ?
+        `SELECT * FROM copa_liga_matches WHERE id IN (${roundIds.map(() => '?').join(',')}) AND played = 0 AND id != ?
          AND (? IS NULL OR (home_club_id != ? AND away_club_id != ?))`
       )
-      .all(match.season_year, match.group_name, id, managedClubId, managedClubId, managedClubId);
+      .all(...roundIds, id, managedClubId, managedClubId, managedClubId);
     for (const m of siblings) await playCopaLigaMatch(db, seasonYear, m, { allowPenalties: false });
   }
 }
