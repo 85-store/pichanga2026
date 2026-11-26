@@ -206,6 +206,48 @@ async function simulateGroupStage(db, seasonYear) {
   return results;
 }
 
+// Simula una sola ronda (jornada) de un grupo: la que contiene anchorMatchId
+// si se indica (para el grupo del usuario, donde se quiere avanzar la misma
+// ronda que el partido que el usuario esta jugando), o si no la primera ronda
+// que todavia tenga partidos pendientes (para el resto de los grupos, que no
+// tienen partido propio que sirva de ancla y si no se les hiciera avanzar
+// quedarian congelados mientras el usuario juega el suyo jornada por jornada).
+// Las rondas no tienen columna propia en copa_liga_matches: se reconstruyen
+// agrupando de a (cupos del grupo / 2) partidos consecutivos por id, que es
+// el orden en que ensureCopaLigaDraw los inserto (ronda por ronda).
+async function simulateGroupRound(db, seasonYear, groupName, { anchorMatchId, excludeClubId } = {}) {
+  const groupMatches = await db
+    .prepare(`SELECT * FROM copa_liga_matches WHERE season_year = ? AND stage = 'grupos' AND group_name = ? ORDER BY id ASC`)
+    .all(seasonYear, groupName);
+  if (!groupMatches.length) return [];
+
+  const groupSizeRow = await db
+    .prepare('SELECT COUNT(*) as c FROM copa_liga_groups WHERE season_year = ? AND group_name = ?')
+    .get(seasonYear, groupName);
+  const perRound = Math.max(1, Math.floor((groupSizeRow.c || 4) / 2));
+
+  let roundStart;
+  if (anchorMatchId != null) {
+    const idx = groupMatches.findIndex((m) => m.id === anchorMatchId);
+    if (idx === -1) return [];
+    roundStart = Math.floor(idx / perRound) * perRound;
+  } else {
+    const idx = groupMatches.findIndex((m) => m.played === 0);
+    if (idx === -1) return [];
+    roundStart = Math.floor(idx / perRound) * perRound;
+  }
+
+  const roundMatches = groupMatches.slice(roundStart, roundStart + perRound);
+  const results = [];
+  for (const m of roundMatches) {
+    if (m.played) continue;
+    if (m.id === anchorMatchId) continue;
+    if (excludeClubId && (m.home_club_id === excludeClubId || m.away_club_id === excludeClubId)) continue;
+    results.push(await playCopaLigaMatch(db, seasonYear, m, { allowPenalties: false }));
+  }
+  return results;
+}
+
 async function getGroupWinner(db, seasonYear, groupName) {
   const standings = await getGroupStandings(db, seasonYear, groupName);
   return standings.length ? standings[0].club_id : null;
@@ -389,6 +431,7 @@ module.exports = {
   getAllGroupsOverview,
   isGroupStageComplete,
   simulateGroupStage,
+  simulateGroupRound,
   playCopaLigaMatch,
   ensureSemifinals,
   getSemifinalResults,
