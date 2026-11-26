@@ -44,6 +44,19 @@ async function getMetaDb() {
         PRIMARY KEY (firebase_uid, slot)
       );
     `);
+    await db.exec(`
+      CREATE TABLE IF NOT EXISTS user_profiles (
+        firebase_uid TEXT PRIMARY KEY,
+        nombres TEXT NOT NULL,
+        apellidos TEXT NOT NULL,
+        telefono TEXT NOT NULL,
+        tiktok TEXT,
+        instagram TEXT,
+        equipo_favorito_id INTEGER,
+        equipo_rival_id INTEGER,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+    `);
     const clubCount = await db.prepare('SELECT COUNT(*) as n FROM clubs').get();
     if (!clubCount || clubCount.n === 0) await seedClubs(db);
     return db;
@@ -123,6 +136,30 @@ async function provisionUserDb(uid, slot) {
   return db;
 }
 
+async function saveUserProfile(uid, data) {
+  const { nombres, apellidos, telefono, tiktok, instagram, equipoFavoritoId, equipoRivalId } = data;
+  const meta = await getMetaDb();
+  await meta
+    .prepare(
+      `INSERT INTO user_profiles (firebase_uid, nombres, apellidos, telefono, tiktok, instagram, equipo_favorito_id, equipo_rival_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(firebase_uid) DO UPDATE SET
+         nombres = excluded.nombres,
+         apellidos = excluded.apellidos,
+         telefono = excluded.telefono,
+         tiktok = excluded.tiktok,
+         instagram = excluded.instagram,
+         equipo_favorito_id = excluded.equipo_favorito_id,
+         equipo_rival_id = excluded.equipo_rival_id`
+    )
+    .run(uid, nombres, apellidos, telefono, tiktok || null, instagram || null, equipoFavoritoId, equipoRivalId);
+}
+
+async function getUserProfile(uid) {
+  const meta = await getMetaDb();
+  return meta.prepare('SELECT * FROM user_profiles WHERE firebase_uid = ?').get(uid);
+}
+
 async function deleteUserDb(uid, slot) {
   const record = await getSaveRecord(uid, slot);
   if (!record) return;
@@ -132,4 +169,13 @@ async function deleteUserDb(uid, slot) {
   userDbCache.delete(cacheKey(uid, slot));
 }
 
-module.exports = { listUserSaves, getSaveRecord, getUserDbHandle, provisionUserDb, deleteUserDb, getCatalogClubs };
+module.exports = {
+  listUserSaves,
+  getSaveRecord,
+  getUserDbHandle,
+  provisionUserDb,
+  deleteUserDb,
+  getCatalogClubs,
+  saveUserProfile,
+  getUserProfile,
+};

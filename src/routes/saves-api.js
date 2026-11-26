@@ -25,6 +25,29 @@ function buildSavesRouter() {
     }
   });
 
+  // Perfil del usuario (datos de registro + equipo favorito/rival), guardado
+  // en la base meta tras crear la cuenta en Firebase.
+  router.post('/profile', async (req, res) => {
+    try {
+      const { nombres, apellidos, telefono, tiktok, instagram, equipoFavoritoId, equipoRivalId } = req.body || {};
+      if (!nombres || !apellidos || !telefono || !equipoFavoritoId || !equipoRivalId) {
+        return res.status(400).json({ error: 'Faltan datos obligatorios del perfil.' });
+      }
+      await registry.saveUserProfile(req.uid, {
+        nombres,
+        apellidos,
+        telefono,
+        tiktok,
+        instagram,
+        equipoFavoritoId: Number(equipoFavoritoId),
+        equipoRivalId: Number(equipoRivalId),
+      });
+      res.json({ ok: true });
+    } catch (err) {
+      res.status(400).json({ error: err.message });
+    }
+  });
+
   router.post('/:slot/new', async (req, res) => {
     try {
       const slot = Number(req.params.slot);
