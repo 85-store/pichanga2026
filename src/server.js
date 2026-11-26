@@ -36,15 +36,16 @@ function buildApp() {
   return app;
 }
 
-function main() {
-  const app = buildApp();
+const app = buildApp();
+
+// Vercel detecta Express por el export por defecto del modulo (tiene que ser
+// la app/funcion en si, no un objeto) y la corre nativamente; local, se
+// arranca con .listen() solo cuando este archivo es el que se ejecuta
+// directo (node src/server.js / npm start), no cuando otro modulo lo importa.
+if (require.main === module) {
   app.listen(PORT, () => {
     console.log(`Pichanga 2026 escuchando en http://localhost:${PORT}`);
   });
 }
 
-if (require.main === module) {
-  main();
-}
-
-module.exports = { buildApp };
+module.exports = app;
