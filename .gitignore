@@ -14,3 +14,4 @@ data/saves/
 .env.*
 !.env.example
 clave firebase/
+qa-test-accounts.md

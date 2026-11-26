@@ -1,4 +1,4 @@
-// Pantalla de titulo: PICHANGA 26, con Cargar / Continuar / Nuevo y 3 huecos de
+// Pantalla de titulo: PICHANGA 26, con Cargar / Continuar / Nuevo y 3 casillas de
 // partida guardada. Se muestra al cargar la pagina y oculta #app hasta que se
 // cargue o cree una partida; entonces llama a window.startGame().
 const titleRoot = document.getElementById('title-root');
@@ -194,7 +194,7 @@ function confirmDialog(message, confirmLabel) {
 }
 
 function slotLabel(slot) {
-  if (!slot.exists) return 'Hueco vacío';
+  if (!slot.exists) return 'Casilla vacía';
   const clubName = slot.club ? slot.club.name : 'Sin club';
   const statusTxt = slot.status === 'despedido' ? ' · despedido' : '';
   return `Temporada ${slot.seasonYear} · ${escapeTitleHtml(clubName)}${statusTxt}`;
@@ -224,7 +224,7 @@ function renderTitleScreen() {
   startBgCarousel();
 
   // No existe mas un "continuar" implicito: desde la Fase 2 cada usuario tiene
-  // varios huecos propios (ya no una unica partida global), asi que "Continuar"
+  // varias casillas propias (ya no una unica partida global), asi que "Continuar"
   // hace lo mismo que "Cargar" - elegir cual.
   document.getElementById('title-continue').addEventListener('click', () => openSlotPicker('load'));
   document.getElementById('title-load').addEventListener('click', () => openSlotPicker('load'));
@@ -394,7 +394,7 @@ async function openSlotPicker(mode) {
             (s) => `
           <div class="slot-item">
             <button class="slot-select ${!s.exists && mode === 'load' ? 'disabled' : ''}" data-slot="${s.slot}">
-              <div class="slot-num">Hueco ${s.slot}</div>
+              <div class="slot-num">Casilla ${s.slot}</div>
               <div class="slot-desc">${slotLabel(s)}</div>
             </button>
             ${s.exists ? `<button class="slot-delete-btn" data-slot="${s.slot}" title="Borrar esta partida">🗑️</button>` : ''}
@@ -416,7 +416,7 @@ async function openSlotPicker(mode) {
       const slot = Number(btn.dataset.slot);
       const slotInfo = slots.find((s) => s.slot === slot);
       if (mode === 'load') {
-        if (!slotInfo.exists) return;
+        if (!slotInfo.exists) return alert('Esa casilla está vacía. Usá "Nuevo" para crear una partida ahí.');
         loadSlot(slot, backdrop);
       } else {
         window.closeModal(backdrop, () => openNewGameModal(slot, slotInfo));
@@ -429,9 +429,9 @@ async function openSlotPicker(mode) {
       e.stopPropagation();
       const slot = Number(btn.dataset.slot);
       const slotInfo = slots.find((s) => s.slot === slot);
-      const label = slotInfo && slotInfo.club ? slotInfo.club.name : `Hueco ${slot}`;
+      const label = slotInfo && slotInfo.club ? slotInfo.club.name : `Casilla ${slot}`;
       const confirmed = await confirmDialog(
-        `¿Borrar la partida del Hueco ${slot} (${label})? Esta acción no se puede deshacer.`,
+        `¿Borrar la partida de la Casilla ${slot} (${label})? Esta acción no se puede deshacer.`,
         'Sí, borrar'
       );
       if (!confirmed) return;
@@ -470,8 +470,8 @@ async function openNewGameModal(slot, slotInfo) {
 
   backdrop.innerHTML = `
     <div class="title-modal">
-      <h2>Nueva partida — Hueco ${slot}</h2>
-      ${slotInfo.exists ? '<div class="warn-text">Este hueco ya tiene una partida guardada. Crear una nueva la reemplazará.</div>' : ''}
+      <h2>Nueva partida — Casilla ${slot}</h2>
+      ${slotInfo.exists ? '<div class="warn-text">Esta casilla ya tiene una partida guardada. Crear una nueva la reemplazará.</div>' : ''}
       <label class="field-label">Tu nombre de entrenador</label>
       <input type="text" id="new-manager-name" placeholder="Nombre (opcional)" />
       <label class="field-label">Club a dirigir</label>
