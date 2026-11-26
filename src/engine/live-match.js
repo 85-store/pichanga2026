@@ -52,12 +52,17 @@ const HALFTIME_MESSAGES = ['motivador', 'exigente', 'tactico'];
 const sessions = new Map();
 const TABLE_BY_KIND = { league: 'fixtures', copa: 'copa_matches', supercopa: 'super_copa_matches', 'copa-liga': 'copa_liga_matches' };
 
-function sessionKey(kind, id) {
-  return `${kind}:${id}`;
+// Las sesiones en memoria se indexan tambien por uid: dos usuarios distintos
+// pueden tener, cada uno en su propia base, un fixture/partido con el mismo
+// id (cada base de usuario arranca su autoincrement desde 1), y sin el uid en
+// la clave una sesion de un usuario podria leerse o tocarse desde el partido
+// de otro.
+function sessionKey(uid, kind, id) {
+  return `${uid}:${kind}:${id}`;
 }
 
-function getSession(kind, id) {
-  return sessions.get(sessionKey(kind, id));
+function getSession(uid, kind, id) {
+  return sessions.get(sessionKey(uid, kind, id));
 }
 
 function randRange(min, max) {
@@ -181,9 +186,9 @@ async function computeCrowdTension(db, session, sideKey) {
   return Math.max(0.5, Math.min(3, tension));
 }
 
-async function startMatch(db, kind, id, seasonYear, options) {
+async function startMatch(uid, db, kind, id, seasonYear, options) {
   const { managedClubId, lineup, formation } = options || {};
-  const key = sessionKey(kind, id);
+  const key = sessionKey(uid, kind, id);
   if (sessions.has(key)) {
     const existing = sessions.get(key);
     return { view: publicView(existing), frames: [frameAt(existing, 0, null, null, [])] };
@@ -923,8 +928,8 @@ function maybeAdvanceHalf(session) {
   return false;
 }
 
-async function advance(db, kind, id, minutes) {
-  const session = getSession(kind, id);
+async function advance(uid, db, kind, id, minutes) {
+  const session = getSession(uid, kind, id);
   if (!session) throw new Error('No hay un partido en curso para este fixture.');
   if (session.finished) throw new Error('El partido ya terminó.');
 
@@ -976,8 +981,8 @@ async function advance(db, kind, id, minutes) {
 
 // Resuelve un penal pendiente (jugada en vivo, no tanda) con el jugador
 // elegido por el usuario; reanuda el partido de inmediato despues.
-function resolvePenalty(kind, id, playerId, managedClubId) {
-  const session = getSession(kind, id);
+function resolvePenalty(uid, kind, id, playerId, managedClubId) {
+  const session = getSession(uid, kind, id);
   if (!session) throw new Error('No hay un partido en curso para este fixture.');
   if (!session.pendingPenalty) throw new Error('No hay un penal pendiente para patear.');
   const { side, minute } = session.pendingPenalty;
@@ -997,8 +1002,8 @@ function resolvePenalty(kind, id, playerId, managedClubId) {
 // dirige el usuario, requiere playerId; si es turno de la IA, elige ella
 // misma a quien patea (ignorando playerId). Si la tanda termina, finaliza el
 // partido de inmediato y devuelve el resumen final.
-async function shootoutKick(db, kind, id, playerId, managedClubId) {
-  const session = getSession(kind, id);
+async function shootoutKick(uid, db, kind, id, playerId, managedClubId) {
+  const session = getSession(uid, kind, id);
   if (!session) throw new Error('No hay un partido en curso para este fixture.');
   const state = session.shootoutState;
   if (!state || state.finished) throw new Error('No hay una tanda de penales en curso.');
@@ -1053,8 +1058,8 @@ async function shootoutKick(db, kind, id, playerId, managedClubId) {
 
 // Resuelve un entretiempo pendiente: aplica el mensaje elegido por el usuario
 // para su lado y reanuda el partido (ya quedo en la segunda mitad).
-function resolveHalftime(kind, id, message, managedClubId) {
-  const session = getSession(kind, id);
+function resolveHalftime(uid, kind, id, message, managedClubId) {
+  const session = getSession(uid, kind, id);
   if (!session) throw new Error('No hay un partido en curso para este fixture.');
   if (!session.pause || session.pause.type !== 'halftime') throw new Error('No hay entretiempo pendiente.');
   const side = sideForClub(session, managedClubId);
@@ -1070,8 +1075,8 @@ function resolveHalftime(kind, id, message, managedClubId) {
 // perdido como descuento adicional (no se pierde del todo); "suspender" (solo
 // disponible en incidentes graves) termina el partido ya mismo, ratificando
 // el resultado al momento de la suspension como resolucion de la competicion.
-async function resolveIncident(db, kind, id, action) {
-  const session = getSession(kind, id);
+async function resolveIncident(uid, db, kind, id, action) {
+  const session = getSession(uid, kind, id);
   if (!session) throw new Error('No hay un partido en curso para este fixture.');
   if (!session.pause || session.pause.type !== 'incident') throw new Error('No hay un incidente pendiente.');
   const payload = session.pause.payload;
@@ -1105,8 +1110,8 @@ function assertControlsSide(session, side, managedClubId) {
   }
 }
 
-async function setTactics(db, kind, id, side, tactics, managedClubId) {
-  const session = getSession(kind, id);
+async function setTactics(uid, db, kind, id, side, tactics, managedClubId) {
+  const session = getSession(uid, kind, id);
   if (!session) throw new Error('No hay un partido en curso para este fixture.');
   if (session.finished) throw new Error('El partido ya terminó.');
   const target = session[side];
@@ -1119,8 +1124,8 @@ async function setTactics(db, kind, id, side, tactics, managedClubId) {
   return publicView(session);
 }
 
-function substitute(kind, id, side, outPlayerId, inPlayerId, managedClubId) {
-  const session = getSession(kind, id);
+function substitute(uid, kind, id, side, outPlayerId, inPlayerId, managedClubId) {
+  const session = getSession(uid, kind, id);
   if (!session) throw new Error('No hay un partido en curso para este fixture.');
   if (session.finished) throw new Error('El partido ya terminó.');
   const target = session[side];
@@ -1146,8 +1151,8 @@ function substitute(kind, id, side, outPlayerId, inPlayerId, managedClubId) {
   return publicView(session);
 }
 
-function getState(kind, id) {
-  const session = getSession(kind, id);
+function getState(uid, kind, id) {
+  const session = getSession(uid, kind, id);
   if (!session) return null;
   return publicView(session);
 }

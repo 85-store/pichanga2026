@@ -44,11 +44,12 @@ const {
   getSentOffers,
 } = require('../engine/market');
 
-function buildApiRouter(db) {
+function buildApiRouter() {
   const router = express.Router();
 
   router.get('/season', async (req, res) => {
     try {
+      const db = req.db;
       res.json({ year: await getCurrentSeasonYear(db) });
     } catch (err) {
       res.status(500).json({ error: err.message });
@@ -57,6 +58,7 @@ function buildApiRouter(db) {
 
   router.get('/clubs', async (req, res) => {
     try {
+      const db = req.db;
       const clubs = await db
         .prepare(
           `SELECT c.*,
@@ -75,6 +77,7 @@ function buildApiRouter(db) {
 
   router.get('/clubs/:id', async (req, res) => {
     try {
+      const db = req.db;
       const club = await db.prepare('SELECT * FROM clubs WHERE id = ?').get(req.params.id);
       if (!club) return res.status(404).json({ error: 'Club no encontrado' });
 
@@ -96,6 +99,7 @@ function buildApiRouter(db) {
 
   router.get('/players/:id', async (req, res) => {
     try {
+      const db = req.db;
       const seasonYear = await getCurrentSeasonYear(db);
       const player = await db.prepare('SELECT * FROM players WHERE id = ?').get(req.params.id);
       if (!player) return res.status(404).json({ error: 'Jugador no encontrado' });
@@ -136,6 +140,7 @@ function buildApiRouter(db) {
 
   router.get('/players', async (req, res) => {
     try {
+      const db = req.db;
       const seasonYear = await getCurrentSeasonYear(db);
       const q = (req.query.q || '').trim();
       let rows;
@@ -162,6 +167,7 @@ function buildApiRouter(db) {
 
   router.get('/league/:division', async (req, res) => {
     try {
+      const db = req.db;
       const division = req.params.division === 'b' ? 'Primera B' : 'Primera A';
       const seasonYear = await getCurrentSeasonYear(db);
       const standings = await getStandings(db, seasonYear, division);
@@ -200,6 +206,7 @@ function buildApiRouter(db) {
 
   router.post('/league/simulate-jornada', async (req, res) => {
     try {
+      const db = req.db;
       const seasonYear = await getCurrentSeasonYear(db);
       if (await isLeagueComplete(db, seasonYear)) {
         return res.status(400).json({ error: 'La liga de esta temporada ya terminó.' });
@@ -213,6 +220,7 @@ function buildApiRouter(db) {
 
   router.get('/copa', async (req, res) => {
     try {
+      const db = req.db;
       const seasonYear = await getCurrentSeasonYear(db);
       const bracket = await getBracket(db, seasonYear);
       res.json({
@@ -228,6 +236,7 @@ function buildApiRouter(db) {
 
   router.post('/copa/simulate-round', async (req, res) => {
     try {
+      const db = req.db;
       const seasonYear = await getCurrentSeasonYear(db);
       if (await isCopaComplete(db, seasonYear)) {
         return res.status(400).json({ error: 'La Copa Chile de esta temporada ya terminó.' });
@@ -241,6 +250,7 @@ function buildApiRouter(db) {
 
   router.get('/copa-liga', async (req, res) => {
     try {
+      const db = req.db;
       const seasonYear = await getCurrentSeasonYear(db);
       // Partidas ya en curso antes de que existiera esta competicion nunca
       // recibieron su sorteo (solo se genera al crear la carrera o al pasar de
@@ -295,6 +305,7 @@ function buildApiRouter(db) {
 
   router.post('/copa-liga/simulate-step', async (req, res) => {
     try {
+      const db = req.db;
       const seasonYear = await getCurrentSeasonYear(db);
       if (await isCopaLigaComplete(db, seasonYear)) {
         return res.status(400).json({ error: 'La Copa de la Liga de esta temporada ya terminó.' });
@@ -311,6 +322,7 @@ function buildApiRouter(db) {
   // parametro, devuelve la clasificacion mas reciente calculada.
   router.get('/international', async (req, res) => {
     try {
+      const db = req.db;
       const requestedYear = req.query.season ? Number(req.query.season) : null;
       const maxRow = await db.prepare('SELECT MAX(season_year) as y FROM international_qualifications').get();
       const seasonYear = requestedYear || (maxRow || {}).y || null;
@@ -323,6 +335,7 @@ function buildApiRouter(db) {
 
   router.post('/season/advance', async (req, res) => {
     try {
+      const db = req.db;
       const career = await getCareer(db);
       if (career && career.status === 'despedido') {
         return res.status(400).json({ error: 'Fuiste despedido. Esta partida terminó.' });
@@ -336,6 +349,7 @@ function buildApiRouter(db) {
 
   router.get('/career', async (req, res) => {
     try {
+      const db = req.db;
       res.json(await getCareer(db));
     } catch (err) {
       res.status(500).json({ error: err.message });
@@ -344,6 +358,7 @@ function buildApiRouter(db) {
 
   router.get('/team-identity', async (req, res) => {
     try {
+      const db = req.db;
       const career = await getCareer(db);
       res.json({ options: listIdentities(), current: career ? career.team_identity : null });
     } catch (err) {
@@ -353,6 +368,7 @@ function buildApiRouter(db) {
 
   router.post('/team-identity', async (req, res) => {
     try {
+      const db = req.db;
       const { identity } = req.body || {};
       const career = await setTeamIdentity(db, identity);
       res.json(career);
@@ -363,6 +379,7 @@ function buildApiRouter(db) {
 
   router.get('/media', async (req, res) => {
     try {
+      const db = req.db;
       res.json({ personas: listPersonas(), comments: await getComments(db, Number(req.query.limit) || 30) });
     } catch (err) {
       res.status(500).json({ error: err.message });
@@ -371,6 +388,7 @@ function buildApiRouter(db) {
 
   router.get('/next-match', async (req, res) => {
     try {
+      const db = req.db;
       res.json(await getNextManagedMatch(db));
     } catch (err) {
       res.status(500).json({ error: err.message });
@@ -379,6 +397,7 @@ function buildApiRouter(db) {
 
   router.get('/tactics', async (req, res) => {
     try {
+      const db = req.db;
       const career = await getCareer(db);
       if (!career || !career.club_id) return res.status(400).json({ error: 'No hay partida activa.' });
       const seasonYear = await getCurrentSeasonYear(db);
@@ -396,6 +415,7 @@ function buildApiRouter(db) {
 
   router.post('/tactics', async (req, res) => {
     try {
+      const db = req.db;
       const career = await getCareer(db);
       if (!career || !career.club_id) return res.status(400).json({ error: 'No hay partida activa.' });
       const { formation, playerIds } = req.body || {};
@@ -408,6 +428,7 @@ function buildApiRouter(db) {
 
   router.get('/career/offers', async (req, res) => {
     try {
+      const db = req.db;
       res.json(await getPendingOffers(db));
     } catch (err) {
       res.status(500).json({ error: err.message });
@@ -416,6 +437,7 @@ function buildApiRouter(db) {
 
   router.post('/career/offers/:id/accept', async (req, res) => {
     try {
+      const db = req.db;
       const seasonYear = await getCurrentSeasonYear(db);
       const career = await acceptOffer(db, Number(req.params.id), seasonYear);
       res.json(career);
@@ -426,6 +448,7 @@ function buildApiRouter(db) {
 
   router.post('/career/offers/:id/decline', async (req, res) => {
     try {
+      const db = req.db;
       const career = await declineOffer(db, Number(req.params.id));
       res.json(career);
     } catch (err) {
@@ -435,6 +458,7 @@ function buildApiRouter(db) {
 
   router.get('/career-events/pending', async (req, res) => {
     try {
+      const db = req.db;
       res.json(await getPendingEvents(db));
     } catch (err) {
       res.status(500).json({ error: err.message });
@@ -443,6 +467,7 @@ function buildApiRouter(db) {
 
   router.get('/career-events/history', async (req, res) => {
     try {
+      const db = req.db;
       const limit = req.query.limit ? Number(req.query.limit) : 30;
       res.json(await getEventHistory(db, limit));
     } catch (err) {
@@ -452,6 +477,7 @@ function buildApiRouter(db) {
 
   router.post('/career-events/:id/resolve', async (req, res) => {
     try {
+      const db = req.db;
       const { optionId } = req.body || {};
       const result = await resolveEvent(db, Number(req.params.id), optionId);
       res.json(result);
@@ -462,6 +488,7 @@ function buildApiRouter(db) {
 
   router.get('/super-copa', async (req, res) => {
     try {
+      const db = req.db;
       const seasonYear = await getCurrentSeasonYear(db);
       const match = await getSuperCopa(db, seasonYear);
       res.json({ seasonYear, match });
@@ -472,6 +499,7 @@ function buildApiRouter(db) {
 
   router.post('/super-copa/simulate', async (req, res) => {
     try {
+      const db = req.db;
       const seasonYear = await getCurrentSeasonYear(db);
       if (!(await isSuperCopaPending(db, seasonYear))) {
         return res.status(400).json({ error: 'No hay Supercopa pendiente esta temporada.' });
@@ -485,6 +513,7 @@ function buildApiRouter(db) {
 
   router.get('/market/status', async (req, res) => {
     try {
+      const db = req.db;
       res.json(await getMarketStatus(db));
     } catch (err) {
       res.status(500).json({ error: err.message });
@@ -493,6 +522,7 @@ function buildApiRouter(db) {
 
   router.get('/market/free-agents', async (req, res) => {
     try {
+      const db = req.db;
       const status = await getMarketStatus(db);
       if (!status.open) return res.status(400).json({ error: 'No hay mercado de pases abierto.' });
       res.json(await getFreeAgents(db, status.seasonYear, status.window));
@@ -503,6 +533,7 @@ function buildApiRouter(db) {
 
   router.post('/market/free-agents/:id/sign', async (req, res) => {
     try {
+      const db = req.db;
       const status = await getMarketStatus(db);
       if (!status.open) return res.status(400).json({ error: 'No hay mercado de pases abierto.' });
       const result = await signFreeAgent(db, Number(req.params.id), status.clubId, status.seasonYear, status.window);
@@ -519,6 +550,7 @@ function buildApiRouter(db) {
 
   router.get('/market/players', async (req, res) => {
     try {
+      const db = req.db;
       const status = await getMarketStatus(db);
       if (!status.open) return res.status(400).json({ error: 'No hay mercado de pases abierto.' });
       res.json(await searchablePlayers(db, status.clubId, status.seasonYear, req.query.q));
@@ -532,6 +564,7 @@ function buildApiRouter(db) {
   // posicion, club y precio.
   router.get('/market/search', async (req, res) => {
     try {
+      const db = req.db;
       const status = await getMarketStatus(db);
       if (!status.open) return res.status(400).json({ error: 'No hay mercado de pases abierto.' });
       const { q, ageMin, ageMax, nationality, position, clubId, priceMin, priceMax } = req.query;
@@ -553,6 +586,7 @@ function buildApiRouter(db) {
 
   router.post('/market/loan', async (req, res) => {
     try {
+      const db = req.db;
       const status = await getMarketStatus(db);
       if (!status.open) return res.status(400).json({ error: 'No hay mercado de pases abierto.' });
       const { playerId } = req.body;
@@ -565,6 +599,7 @@ function buildApiRouter(db) {
 
   router.post('/market/loan-out', async (req, res) => {
     try {
+      const db = req.db;
       const status = await getMarketStatus(db);
       if (!status.open) return res.status(400).json({ error: 'No hay mercado de pases abierto.' });
       const { playerId } = req.body;
@@ -577,6 +612,7 @@ function buildApiRouter(db) {
 
   router.post('/market/bid', async (req, res) => {
     try {
+      const db = req.db;
       const status = await getMarketStatus(db);
       if (!status.open) return res.status(400).json({ error: 'No hay mercado de pases abierto.' });
       const { playerId, amount } = req.body;
@@ -596,6 +632,7 @@ function buildApiRouter(db) {
 
   router.get('/market/offers', async (req, res) => {
     try {
+      const db = req.db;
       const status = await getMarketStatus(db);
       if (!status.open || !status.clubId) return res.json([]);
       res.json(await getIncomingOffers(db, status.clubId, status.seasonYear, status.window));
@@ -608,6 +645,7 @@ function buildApiRouter(db) {
   // agentes libres, prestamos), para el panel compacto "Ofertas enviadas".
   router.get('/market/sent-offers', async (req, res) => {
     try {
+      const db = req.db;
       const status = await getMarketStatus(db);
       if (!status.open) return res.json([]);
       res.json(await getSentOffers(db, status.seasonYear, status.window));
@@ -618,6 +656,7 @@ function buildApiRouter(db) {
 
   router.post('/market/sent-offers/:id/accept-counter', async (req, res) => {
     try {
+      const db = req.db;
       const status = await getMarketStatus(db);
       if (!status.open) return res.status(400).json({ error: 'No hay mercado de pases abierto.' });
       const result = await acceptCounterOffer(db, Number(req.params.id), status.clubId, status.seasonYear);
@@ -629,6 +668,7 @@ function buildApiRouter(db) {
 
   router.post('/market/sent-offers/:id/decline-counter', async (req, res) => {
     try {
+      const db = req.db;
       const result = await declineCounterOffer(db, Number(req.params.id));
       res.json(result);
     } catch (err) {
@@ -638,6 +678,7 @@ function buildApiRouter(db) {
 
   router.post('/market/offers/:id/accept', async (req, res) => {
     try {
+      const db = req.db;
       const seasonYear = await getCurrentSeasonYear(db);
       const result = await acceptIncomingOffer(db, Number(req.params.id), seasonYear);
       res.json(result);
@@ -648,6 +689,7 @@ function buildApiRouter(db) {
 
   router.post('/market/offers/:id/decline', async (req, res) => {
     try {
+      const db = req.db;
       const result = await declineIncomingOffer(db, Number(req.params.id));
       res.json(result);
     } catch (err) {
