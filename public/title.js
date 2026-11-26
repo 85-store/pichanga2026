@@ -204,7 +204,7 @@ function renderTitleScreen() {
   titleRoot.innerHTML = `
     <div class="title-screen">
       <div class="title-bg" id="title-bg"></div>
-      <button class="music-btn" id="user-menu-btn" style="position:absolute; top:16px; right:16px; z-index:5;" title="Mi cuenta">👤</button>
+      <button class="music-btn" id="user-menu-btn" style="position:absolute; top:16px; left:50%; transform:translateX(-50%); z-index:5;" title="Mi cuenta">☰</button>
       <div class="title-foreground">
         <div class="title-logo">PICHANGA</div>
         <div class="title-buttons">
