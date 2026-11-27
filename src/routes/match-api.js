@@ -7,6 +7,7 @@ const liveMatch = require('../engine/live-match');
 const { saveLineup } = require('../engine/tactics');
 const { simulateGroupRound } = require('../engine/copa-liga');
 const { getUpcomingCalendar } = require('../engine/next-match');
+const { maybeStadiumFire, forfeitHomeMatch, TABLE_BY_KIND: FIRE_TABLE_BY_KIND } = require('../engine/stadium-incidents');
 
 // Simula de inmediato (motor rapido) el resto de los partidos de la misma
 // jornada/ronda que el que el usuario va a ver interactivamente, para que esos
@@ -126,6 +127,26 @@ function buildMatchRouter() {
       const { lineup, formation } = req.body || {};
       const managedClubId = career ? career.club_id : null;
       await assertPlaysInOrder(db, req.params.kind, Number(req.params.id), managedClubId);
+
+      // Incendio de estadio: solo puede pasar en un partido de LOCAL del
+      // propio club del usuario (nunca a equipos manejados por la IA), y solo
+      // se evalua si todavia no esta jugado (evita re-chequear un partido ya
+      // resuelto si el usuario reabre la planilla).
+      const fireTable = FIRE_TABLE_BY_KIND[req.params.kind];
+      if (managedClubId && fireTable) {
+        const matchRow = await db.prepare(`SELECT * FROM ${fireTable} WHERE id = ?`).get(Number(req.params.id));
+        if (matchRow && !matchRow.played && matchRow.home_club_id === managedClubId) {
+          if (await maybeStadiumFire(db, career)) {
+            await forfeitHomeMatch(db, seasonYear, req.params.kind, matchRow);
+            return res.json({
+              stadiumFire: true,
+              message:
+                'Un sector de la hinchada incendió el estadio antes del partido. El encuentro quedó suspendido y se le dio por ganado 3-0 al rival.',
+            });
+          }
+        }
+      }
+
       const result = await liveMatch.startMatch(req.uid, db, req.params.kind, Number(req.params.id), seasonYear, {
         managedClubId,
         lineup,

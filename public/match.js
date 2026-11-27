@@ -254,6 +254,12 @@ function showLineupPicker(kind, id, roster, saved) {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ lineup: [...selected], formation }),
       });
+      if (res.stadiumFire) {
+        matchRoot.innerHTML = '';
+        alert(res.message);
+        if (window.onMatchFinished) window.onMatchFinished();
+        return;
+      }
       mx.view = res.view;
       mx.frame = res.frames[res.frames.length - 1];
       mx.events = [];
