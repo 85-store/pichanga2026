@@ -111,14 +111,26 @@ async function playCopaMatch(db, seasonYear, match) {
 }
 
 async function simulateNextCopaRound(db, seasonYear) {
-  const pending = await db
-    .prepare('SELECT * FROM copa_matches WHERE season_year = ? AND played = 0 ORDER BY round_order, slot')
-    .all(seasonYear);
-  if (!pending.length) return null;
+  // No se busca la ronda con partidos pendientes (round_order del primer
+  // partido sin jugar): "simulateRestOfRound" en match-api.js adelanta con el
+  // motor rapido TODOS los partidos de la ronda del usuario en el momento en
+  // que el ve el suyo en vivo, asi que puede no quedar ningun partido
+  // pendiente aunque la siguiente ronda todavia no se haya armado. Por eso se
+  // usa la ultima ronda que ya existe en el cuadro, jugando lo que falte (si
+  // falta algo) y armando la siguiente ronda si la actual ya esta completa y
+  // la siguiente todavia no se genero - sin eso el boton "Simular siguiente
+  // ronda" no tenia nada pendiente que jugar y se quedaba sin avanzar nunca.
+  const latest = await db
+    .prepare('SELECT round_order, round_name FROM copa_matches WHERE season_year = ? ORDER BY round_order DESC LIMIT 1')
+    .get(seasonYear);
+  if (!latest) return null;
+  const roundOrder = latest.round_order;
 
-  const roundOrder = pending[0].round_order;
-  const roundMatches = pending.filter((m) => m.round_order === roundOrder);
+  const roundMatches = await db
+    .prepare('SELECT * FROM copa_matches WHERE season_year = ? AND round_order = ? AND played = 0 ORDER BY slot')
+    .all(seasonYear, roundOrder);
   const results = [];
+  let advanced = false;
 
   const tx = await db.transaction('write');
   try {
@@ -128,21 +140,27 @@ async function simulateNextCopaRound(db, seasonYear) {
 
     const nextRoundOrder = roundOrder + 1;
     if (ROUND_NAMES[nextRoundOrder]) {
-      // Los ganadores de la ronda tienen que salir de TODOS sus partidos, no
-      // solo de los que se acaban de jugar en este llamado: si el usuario ya
-      // jugo el suyo antes en vivo (live-match.js), quedaba con played=1 y
-      // afuera de "results" (que solo tiene los recien jugados aqui), y su
-      // club se caia del cuadro aunque hubiera ganado - la Copa Chile nunca le
-      // avanzaba mas alla de la primera ronda.
-      const allRoundMatches = await tx
-        .prepare('SELECT * FROM copa_matches WHERE season_year = ? AND round_order = ? ORDER BY slot')
-        .all(seasonYear, roundOrder);
-      const winners = allRoundMatches.map((m) => m.winner_club_id);
-      const insert = tx.prepare(
-        `INSERT INTO copa_matches (season_year, round_name, round_order, slot, home_club_id, away_club_id) VALUES (?, ?, ?, ?, ?, ?)`
-      );
-      for (let i = 0; i < winners.length / 2; i++) {
-        await insert.run(seasonYear, ROUND_NAMES[nextRoundOrder], nextRoundOrder, i, winners[i * 2], winners[i * 2 + 1]);
+      const existingNext = await tx
+        .prepare('SELECT COUNT(*) as c FROM copa_matches WHERE season_year = ? AND round_order = ?')
+        .get(seasonYear, nextRoundOrder);
+      if (existingNext.c === 0) {
+        // Los ganadores de la ronda tienen que salir de TODOS sus partidos, no
+        // solo de los que se acaban de jugar en este llamado: si el usuario ya
+        // jugo el suyo antes en vivo (live-match.js), quedaba con played=1 y
+        // afuera de "results" (que solo tiene los recien jugados aqui), y su
+        // club se caia del cuadro aunque hubiera ganado - la Copa Chile nunca le
+        // avanzaba mas alla de la primera ronda.
+        const allRoundMatches = await tx
+          .prepare('SELECT * FROM copa_matches WHERE season_year = ? AND round_order = ? ORDER BY slot')
+          .all(seasonYear, roundOrder);
+        const winners = allRoundMatches.map((m) => m.winner_club_id);
+        const insert = tx.prepare(
+          `INSERT INTO copa_matches (season_year, round_name, round_order, slot, home_club_id, away_club_id) VALUES (?, ?, ?, ?, ?, ?)`
+        );
+        for (let i = 0; i < winners.length / 2; i++) {
+          await insert.run(seasonYear, ROUND_NAMES[nextRoundOrder], nextRoundOrder, i, winners[i * 2], winners[i * 2 + 1]);
+        }
+        advanced = true;
       }
     }
     await tx.commit();
@@ -151,7 +169,8 @@ async function simulateNextCopaRound(db, seasonYear) {
     throw err;
   }
 
-  return { round_name: ROUND_NAMES[roundOrder], matches: results };
+  if (!results.length && !advanced) return null;
+  return { round_name: latest.round_name, matches: results };
 }
 
 async function simulateRemainingCopa(db, seasonYear) {

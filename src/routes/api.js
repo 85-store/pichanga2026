@@ -24,6 +24,7 @@ const { getCareer, getPendingOffers, acceptOffer, declineOffer } = require('../e
 const { listIdentities, setTeamIdentity } = require('../engine/team-identity');
 const { getSavedLineup, saveLineup } = require('../engine/tactics');
 const { getNextManagedMatch, getUpcomingCalendar } = require('../engine/next-match');
+const { getMatchHistory } = require('../engine/match-history');
 const { getPendingEvents, getEventHistory, resolveEvent, resolveEventWithText } = require('../engine/career-events');
 const { onSigningCompletedMedia, getComments, listPersonas } = require('../engine/media');
 const {
@@ -431,6 +432,16 @@ function buildApiRouter() {
         }
       }
       res.json({ entries, seasonAdvance });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  router.get('/match-history', async (req, res) => {
+    try {
+      const db = req.db;
+      const entries = await getMatchHistory(db, { limit: 100 });
+      res.json({ entries });
     } catch (err) {
       res.status(500).json({ error: err.message });
     }

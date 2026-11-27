@@ -737,6 +737,11 @@ function renderCopaData(data) {
           : '<button class="sim-btn" id="sim-copa-btn">Simular siguiente ronda</button>'
       }
     </div>
+    ${
+      complete
+        ? ''
+        : '<div class="copa-hint">Primero jugá tu propio partido pendiente (acá abajo o desde el Calendario). Una vez jugado, apretá "Simular siguiente ronda" para que se jueguen los partidos de los demás clubes y se arme el cruce de la siguiente fase.</div>'
+    }
     <div class="copa-bracket">${bracketHtml}</div>`;
 
   wirePartidosTabBar();
@@ -1246,7 +1251,10 @@ function renderCalendarData(entries, tacticsData) {
 
   mainView.innerHTML = `
     ${partidosTabBarHtml('calendario')}
-    <div class="view-header"><div><h1>📅 Calendario</h1><div class="sub">Tus próximos partidos en las 4 competiciones nacionales, en orden.</div></div></div>
+    <div class="view-header">
+      <div><h1>📅 Calendario</h1><div class="sub">Tus próximos partidos en las 4 competiciones nacionales, en orden.</div></div>
+      <button class="match-history-btn" id="match-history-btn">📜 Historial de partidos</button>
+    </div>
     <div class="partidos-calendar-layout">
       <div class="partidos-calendar-col">
         ${entries.length ? entries.map(calendarEntryHtml).join('') : '<div class="empty-state">No tienes partidos pendientes por ahora.</div>'}
@@ -1268,7 +1276,49 @@ function renderCalendarData(entries, tacticsData) {
     </div>`;
   renderFormationBoard(document.getElementById('cal-formation-board'), starters, formation);
   document.getElementById('cal-edit-formation-btn').addEventListener('click', () => openTacticsEditor(tacticsData));
+  document.getElementById('match-history-btn').addEventListener('click', showMatchHistory);
   wirePartidosTabBar();
+}
+
+async function showMatchHistory() {
+  const modalRoot = document.getElementById('modal-root');
+  const backdrop = document.createElement('div');
+  backdrop.className = 'summary-modal-backdrop';
+  backdrop.innerHTML = `
+    <div class="summary-modal">
+      <h2>📜 Historial de partidos</h2>
+      <div class="match-history-list"><div class="empty-state">Cargando…</div></div>
+      <button class="close-btn" id="close-match-history">Cerrar</button>
+    </div>`;
+  modalRoot.appendChild(backdrop);
+  document.getElementById('close-match-history').addEventListener('click', () => window.closeModal(backdrop));
+  backdrop.addEventListener('click', (e) => {
+    if (e.target === backdrop) window.closeModal(backdrop);
+  });
+
+  const listEl = backdrop.querySelector('.match-history-list');
+  try {
+    const { entries } = await api('/match-history');
+    const RESULT_LABEL = { G: 'G', E: 'E', P: 'P' };
+    listEl.innerHTML = entries.length
+      ? entries
+          .map(
+            (e) => `<div class="match-history-row">
+              <span class="mh-result ${e.result}">${RESULT_LABEL[e.result]}</span>
+              <span class="mh-comp">${escapeHtml(e.competition)}<br>${escapeHtml(e.roundLabel)}</span>
+              <span class="mh-teams">
+                ${crestImg(e.isHome ? e.myClub : e.rivalClub, 20)} ${escapeHtml((e.isHome ? e.myClub : e.rivalClub).short_name || (e.isHome ? e.myClub : e.rivalClub).name)}
+                <span class="mh-score">${e.isHome ? e.myGoals : e.rivalGoals} - ${e.isHome ? e.rivalGoals : e.myGoals}</span>
+                ${escapeHtml((e.isHome ? e.rivalClub : e.myClub).short_name || (e.isHome ? e.rivalClub : e.myClub).name)} ${crestImg(e.isHome ? e.rivalClub : e.myClub, 20)}
+              </span>
+              <span class="mh-date">${e.decidedByPenalties ? '🥅 Penales · ' : ''}${escapeHtml(e.date)}</span>
+            </div>`
+          )
+          .join('')
+      : '<div class="empty-state">Todavía no has jugado ningún partido esta carrera.</div>';
+  } catch (err) {
+    listEl.innerHTML = `<div class="empty-state">Error cargando el historial: ${escapeHtml(err.message)}</div>`;
+  }
 }
 
 // Pantalla de "balance" de fin de temporada: se muestra primero, antes del

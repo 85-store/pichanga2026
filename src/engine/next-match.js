@@ -153,4 +153,4 @@ async function getNextManagedMatch(db) {
   return entries[0] || null;
 }
 
-module.exports = { getNextManagedMatch, getUpcomingCalendar };
+module.exports = { getNextManagedMatch, getUpcomingCalendar, clubRow, approximateDate };

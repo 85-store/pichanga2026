@@ -235,6 +235,32 @@ table.standings tr.highlight-club { background: var(--panel-2); }
 .view-header h1 { font-family: var(--font-display); margin: 0; font-size: 26px; }
 .view-header .sub { color: var(--text-dim); font-size: 13px; }
 
+.match-history-btn {
+  margin-left: auto; background: var(--panel-2); color: var(--text);
+  border: 1px solid var(--border); border-radius: 8px; padding: 9px 14px;
+  font-size: 13px; cursor: pointer; white-space: nowrap;
+}
+.match-history-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+.copa-hint {
+  background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px;
+  padding: 10px 12px; margin-bottom: 16px; color: var(--text-dim); font-size: 13px;
+}
+
+.match-history-list { display: flex; flex-direction: column; gap: 8px; max-height: 60vh; overflow-y: auto; }
+.match-history-row {
+  display: flex; align-items: center; gap: 10px; background: var(--panel-2);
+  border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; font-size: 13px;
+}
+.match-history-row .mh-comp { color: var(--text-dim); font-size: 11px; min-width: 110px; }
+.match-history-row .mh-teams { flex: 1; display: flex; align-items: center; gap: 6px; justify-content: center; }
+.match-history-row .mh-score { font-weight: 700; font-family: var(--font-display); }
+.match-history-row .mh-date { color: var(--text-dim); font-size: 11px; min-width: 90px; text-align: right; }
+.mh-result { display: inline-block; width: 20px; height: 20px; line-height: 20px; text-align: center; border-radius: 50%; font-size: 11px; font-weight: 700; }
+.mh-result.G { background: rgba(60, 190, 110, 0.18); color: #3cbe6e; }
+.mh-result.E { background: rgba(200, 180, 60, 0.18); color: #c8b43c; }
+.mh-result.P { background: rgba(220, 80, 80, 0.18); color: #dc5050; }
+
 .landing h2 { font-family: var(--font-display); font-size: 22px; margin-bottom: 4px;}
 .landing p { color: var(--text-dim); max-width: 560px; line-height: 1.5; }
 
