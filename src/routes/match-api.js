@@ -171,7 +171,7 @@ function buildMatchRouter() {
   router.post('/:kind/:id/tactics', async (req, res) => {
     try {
       const db = req.db;
-      const managedClubId = liveMatch.getManagedClubId(req.uid, req.params.kind, Number(req.params.id));
+      const managedClubId = await liveMatch.getManagedClubId(req.uid, db, req.params.kind, Number(req.params.id));
       const { side, tactics } = req.body;
       const view = await liveMatch.setTactics(req.uid, db, req.params.kind, Number(req.params.id), side, tactics, managedClubId);
       res.json(view);
@@ -180,22 +180,24 @@ function buildMatchRouter() {
     }
   });
 
-  router.post('/:kind/:id/substitute', (req, res) => {
+  router.post('/:kind/:id/substitute', async (req, res) => {
     try {
-      const managedClubId = liveMatch.getManagedClubId(req.uid, req.params.kind, Number(req.params.id));
+      const db = req.db;
+      const managedClubId = await liveMatch.getManagedClubId(req.uid, db, req.params.kind, Number(req.params.id));
       const { side, outPlayerId, inPlayerId } = req.body;
-      const view = liveMatch.substitute(req.uid, req.params.kind, Number(req.params.id), side, outPlayerId, inPlayerId, managedClubId);
+      const view = await liveMatch.substitute(req.uid, db, req.params.kind, Number(req.params.id), side, outPlayerId, inPlayerId, managedClubId);
       res.json(view);
     } catch (err) {
       res.status(400).json({ error: err.message });
     }
   });
 
-  router.post('/:kind/:id/penalty', (req, res) => {
+  router.post('/:kind/:id/penalty', async (req, res) => {
     try {
-      const managedClubId = liveMatch.getManagedClubId(req.uid, req.params.kind, Number(req.params.id));
+      const db = req.db;
+      const managedClubId = await liveMatch.getManagedClubId(req.uid, db, req.params.kind, Number(req.params.id));
       const { playerId } = req.body;
-      const result = liveMatch.resolvePenalty(req.uid, req.params.kind, Number(req.params.id), playerId, managedClubId);
+      const result = await liveMatch.resolvePenalty(req.uid, db, req.params.kind, Number(req.params.id), playerId, managedClubId);
       res.json(result);
     } catch (err) {
       res.status(400).json({ error: err.message });
@@ -205,7 +207,7 @@ function buildMatchRouter() {
   router.post('/:kind/:id/shootout', async (req, res) => {
     try {
       const db = req.db;
-      const managedClubId = liveMatch.getManagedClubId(req.uid, req.params.kind, Number(req.params.id));
+      const managedClubId = await liveMatch.getManagedClubId(req.uid, db, req.params.kind, Number(req.params.id));
       const { playerId } = req.body;
       const result = await liveMatch.shootoutKick(req.uid, db, req.params.kind, Number(req.params.id), playerId, managedClubId);
       res.json(result);
@@ -214,22 +216,24 @@ function buildMatchRouter() {
     }
   });
 
-  router.post('/:kind/:id/inspire', (req, res) => {
+  router.post('/:kind/:id/inspire', async (req, res) => {
     try {
-      const managedClubId = liveMatch.getManagedClubId(req.uid, req.params.kind, Number(req.params.id));
+      const db = req.db;
+      const managedClubId = await liveMatch.getManagedClubId(req.uid, db, req.params.kind, Number(req.params.id));
       const { playerId } = req.body;
-      const view = liveMatch.inspirePlayer(req.uid, req.params.kind, Number(req.params.id), playerId, managedClubId);
+      const view = await liveMatch.inspirePlayer(req.uid, db, req.params.kind, Number(req.params.id), playerId, managedClubId);
       res.json(view);
     } catch (err) {
       res.status(400).json({ error: err.message });
     }
   });
 
-  router.post('/:kind/:id/halftime', (req, res) => {
+  router.post('/:kind/:id/halftime', async (req, res) => {
     try {
-      const managedClubId = liveMatch.getManagedClubId(req.uid, req.params.kind, Number(req.params.id));
+      const db = req.db;
+      const managedClubId = await liveMatch.getManagedClubId(req.uid, db, req.params.kind, Number(req.params.id));
       const { message } = req.body;
-      const result = liveMatch.resolveHalftime(req.uid, req.params.kind, Number(req.params.id), message, managedClubId);
+      const result = await liveMatch.resolveHalftime(req.uid, db, req.params.kind, Number(req.params.id), message, managedClubId);
       res.json(result);
     } catch (err) {
       res.status(400).json({ error: err.message });
@@ -247,10 +251,15 @@ function buildMatchRouter() {
     }
   });
 
-  router.get('/:kind/:id/state', (req, res) => {
-    const view = liveMatch.getState(req.uid, req.params.kind, Number(req.params.id));
-    if (!view) return res.status(404).json({ error: 'No hay partido en curso.' });
-    res.json(view);
+  router.get('/:kind/:id/state', async (req, res) => {
+    try {
+      const db = req.db;
+      const view = await liveMatch.getState(req.uid, db, req.params.kind, Number(req.params.id));
+      if (!view) return res.status(404).json({ error: 'No hay partido en curso.' });
+      res.json(view);
+    } catch (err) {
+      res.status(400).json({ error: err.message });
+    }
   });
 
   return router;

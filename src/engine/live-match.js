@@ -58,16 +58,57 @@ const INSPIRE_BOOST_FIELD = 14;
 const INSPIRE_BOOST_GK = 24;
 const INSPIRE_RATING_CAP = 99;
 
-const sessions = new Map();
 const TABLE_BY_KIND = { league: 'fixtures', copa: 'copa_matches', supercopa: 'super_copa_matches', 'copa-liga': 'copa_liga_matches' };
 
-// Las sesiones en memoria se indexan tambien por uid: dos usuarios distintos
-// pueden tener, cada uno en su propia base, un fixture/partido con el mismo
-// id (cada base de usuario arranca su autoincrement desde 1), y sin el uid en
-// la clave una sesion de un usuario podria leerse o tocarse desde el partido
-// de otro.
+// Las sesiones se indexan tambien por uid: dos usuarios distintos pueden
+// tener, cada uno en su propia base, un fixture/partido con el mismo id (cada
+// base de usuario arranca su autoincrement desde 1), y sin el uid en la clave
+// una sesion de un usuario podria leerse o tocarse desde el partido de otro.
 function sessionKey(uid, kind, id) {
   return `${uid}:${kind}:${id}`;
+}
+
+// La sesion de partido en vivo vivia solo en un Map en memoria del proceso:
+// en Vercel (serverless) el siguiente pedido del mismo partido puede caer en
+// otra instancia que nunca la vio, mostrando "No hay un partido en curso para
+// este fixture" a mitad de partido. Se persiste en la tabla
+// live_match_sessions de la base del propio usuario/slot (serializada a
+// JSON) para que sobreviva entre pedidos sin importar que instancia los
+// atienda. session.home.everPlayed/session.away.everPlayed (Map) y
+// session.shootoutState.takenIds.home/away (Set) son los unicos tipos no
+// planos de la sesion, de ahi el replacer/reviver.
+function jsonReplacer(_key, value) {
+  if (value instanceof Map) return { __type: 'Map', entries: [...value.entries()] };
+  if (value instanceof Set) return { __type: 'Set', values: [...value.values()] };
+  return value;
+}
+
+function jsonReviver(_key, value) {
+  if (value && typeof value === 'object') {
+    if (value.__type === 'Map') return new Map(value.entries);
+    if (value.__type === 'Set') return new Set(value.values);
+  }
+  return value;
+}
+
+async function loadSession(db, key) {
+  const row = await db.prepare('SELECT state FROM live_match_sessions WHERE session_key = ?').get(key);
+  if (!row) return null;
+  return JSON.parse(row.state, jsonReviver);
+}
+
+async function saveSession(db, key, session) {
+  const state = JSON.stringify(session, jsonReplacer);
+  await db
+    .prepare(
+      `INSERT INTO live_match_sessions (session_key, state, updated_at) VALUES (?, ?, datetime('now'))
+       ON CONFLICT(session_key) DO UPDATE SET state = excluded.state, updated_at = excluded.updated_at`
+    )
+    .run(key, state);
+}
+
+async function deleteSessionRow(db, key) {
+  await db.prepare('DELETE FROM live_match_sessions WHERE session_key = ?').run(key);
 }
 
 // Cola de ejecucion por partido: advance()/shootoutKick()/resolveIncident()/
@@ -92,8 +133,8 @@ function runQueued(key, fn) {
   return next;
 }
 
-function getSession(uid, kind, id) {
-  return sessions.get(sessionKey(uid, kind, id));
+async function getSession(db, uid, kind, id) {
+  return loadSession(db, sessionKey(uid, kind, id));
 }
 
 function randRange(min, max) {
@@ -222,8 +263,8 @@ async function computeCrowdTension(db, session, sideKey) {
 async function startMatch(uid, db, kind, id, seasonYear, options) {
   const { managedClubId, lineup, formation } = options || {};
   const key = sessionKey(uid, kind, id);
-  if (sessions.has(key)) {
-    const existing = sessions.get(key);
+  const existing = await loadSession(db, key);
+  if (existing) {
     return { view: publicView(existing), frames: [frameAt(existing, 0, null, null, [])] };
   }
 
@@ -334,7 +375,7 @@ async function startMatch(uid, db, kind, id, seasonYear, options) {
   };
 
   computePositions(session, null, 'armado');
-  sessions.set(key, session);
+  await saveSession(db, key, session);
   return { view: publicView(session), frames: [frameAt(session, 0, null, null, [])] };
 }
 
@@ -981,7 +1022,7 @@ async function finalize(db, session, opts) {
   };
 
   session.finished = true;
-  sessions.delete(session.key);
+  await deleteSessionRow(db, session.key);
   return summary;
 }
 
@@ -1024,7 +1065,7 @@ function advance(uid, db, kind, id, minutes) {
 }
 
 async function advanceNow(uid, db, kind, id, minutes) {
-  const session = getSession(uid, kind, id);
+  const session = await getSession(db, uid, kind, id);
   if (!session) throw new Error('No hay un partido en curso para este fixture.');
   if (session.finished) throw new Error('El partido ya terminó.');
 
@@ -1069,6 +1110,8 @@ async function advanceNow(uid, db, kind, id, minutes) {
   if (atEndOfMatch) {
     summary = await finalize(db, session);
     finished = true;
+  } else {
+    await saveSession(db, session.key, session);
   }
 
   return { frames, finished, summary, view: finished ? null : publicView(session), paused: session.pause || null };
@@ -1076,8 +1119,8 @@ async function advanceNow(uid, db, kind, id, minutes) {
 
 // Resuelve un penal pendiente (jugada en vivo, no tanda) con el jugador
 // elegido por el usuario; reanuda el partido de inmediato despues.
-function resolvePenalty(uid, kind, id, playerId, managedClubId) {
-  const session = getSession(uid, kind, id);
+async function resolvePenalty(uid, db, kind, id, playerId, managedClubId) {
+  const session = await getSession(db, uid, kind, id);
   if (!session) throw new Error('No hay un partido en curso para este fixture.');
   if (!session.pendingPenalty) throw new Error('No hay un penal pendiente para patear.');
   const { side, minute } = session.pendingPenalty;
@@ -1089,6 +1132,7 @@ function resolvePenalty(uid, kind, id, playerId, managedClubId) {
   resolvePenaltyKick(session, side, taker, minute, events);
   session.pendingPenalty = null;
   session.pause = null;
+  await saveSession(db, session.key, session);
 
   return { frame: frameAt(session, minute, side, 'ataque', events), view: publicView(session) };
 }
@@ -1102,7 +1146,7 @@ function shootoutKick(uid, db, kind, id, playerId, managedClubId) {
 }
 
 async function shootoutKickNow(uid, db, kind, id, playerId, managedClubId) {
-  const session = getSession(uid, kind, id);
+  const session = await getSession(db, uid, kind, id);
   if (!session) throw new Error('No hay un partido en curso para este fixture.');
   const state = session.shootoutState;
   if (!state || state.finished) throw new Error('No hay una tanda de penales en curso.');
@@ -1150,6 +1194,7 @@ async function shootoutKickNow(uid, db, kind, id, playerId, managedClubId) {
     finished = true;
   } else {
     state.turn = otherSide(turnSide);
+    await saveSession(db, session.key, session);
   }
 
   return { shootout: finished ? summary.shootout : publicShootout(session), finished, summary, view: finished ? null : publicView(session) };
@@ -1157,8 +1202,8 @@ async function shootoutKickNow(uid, db, kind, id, playerId, managedClubId) {
 
 // Resuelve un entretiempo pendiente: aplica el mensaje elegido por el usuario
 // para su lado y reanuda el partido (ya quedo en la segunda mitad).
-function resolveHalftime(uid, kind, id, message, managedClubId) {
-  const session = getSession(uid, kind, id);
+async function resolveHalftime(uid, db, kind, id, message, managedClubId) {
+  const session = await getSession(db, uid, kind, id);
   if (!session) throw new Error('No hay un partido en curso para este fixture.');
   if (!session.pause || session.pause.type !== 'halftime') throw new Error('No hay entretiempo pendiente.');
   const side = sideForClub(session, managedClubId);
@@ -1167,6 +1212,7 @@ function resolveHalftime(uid, kind, id, message, managedClubId) {
 
   const result = applyHalftimeTalk(session, side, message);
   session.pause = null;
+  await saveSession(db, session.key, session);
   return { view: publicView(session), talkResult: result };
 }
 
@@ -1179,7 +1225,7 @@ function resolveIncident(uid, db, kind, id, action) {
 }
 
 async function resolveIncidentNow(uid, db, kind, id, action) {
-  const session = getSession(uid, kind, id);
+  const session = await getSession(db, uid, kind, id);
   if (!session) throw new Error('No hay un partido en curso para este fixture.');
   if (!session.pause || session.pause.type !== 'incident') throw new Error('No hay un incidente pendiente.');
   const payload = session.pause.payload;
@@ -1193,6 +1239,7 @@ async function resolveIncidentNow(uid, db, kind, id, action) {
 
   session.halfEventCount[session.half] = (session.halfEventCount[session.half] || 0) + Math.ceil((payload.minutesLost || 0) / 2);
   session.pause = null;
+  await saveSession(db, session.key, session);
   return { finished: false, summary: null, view: publicView(session) };
 }
 
@@ -1218,7 +1265,7 @@ function setTactics(uid, db, kind, id, side, tactics, managedClubId) {
 }
 
 async function setTacticsNow(uid, db, kind, id, side, tactics, managedClubId) {
-  const session = getSession(uid, kind, id);
+  const session = await getSession(db, uid, kind, id);
   if (!session) throw new Error('No hay un partido en curso para este fixture.');
   if (session.finished) throw new Error('El partido ya terminó.');
   const target = session[side];
@@ -1228,11 +1275,12 @@ async function setTacticsNow(uid, db, kind, id, side, tactics, managedClubId) {
   // La tactica aplicada en vivo pasa a ser la tactica de cabecera del club,
   // para que el motor rapido la siga usando en partidos futuros.
   await saveClubTactics(db, target.clubId, target.tactics);
+  await saveSession(db, session.key, session);
   return publicView(session);
 }
 
-function substitute(uid, kind, id, side, outPlayerId, inPlayerId, managedClubId) {
-  const session = getSession(uid, kind, id);
+async function substitute(uid, db, kind, id, side, outPlayerId, inPlayerId, managedClubId) {
+  const session = await getSession(db, uid, kind, id);
   if (!session) throw new Error('No hay un partido en curso para este fixture.');
   if (session.finished) throw new Error('El partido ya terminó.');
   const target = session[side];
@@ -1255,6 +1303,7 @@ function substitute(uid, kind, id, side, outPlayerId, inPlayerId, managedClubId)
   target.everPlayed.set(inPlayer.id, inPlayer);
   target.subsUsed += 1;
 
+  await saveSession(db, session.key, session);
   return publicView(session);
 }
 
@@ -1263,8 +1312,8 @@ function substitute(uid, kind, id, side, outPlayerId, inPlayerId, managedClubId)
 // EFECTIVO (el que usan todas las formulas del motor: remates, atajadas,
 // duelos) solo en esta sesion en memoria - nunca toca la tabla players, asi
 // que el efecto termina con el partido. Si es arquero, el boost es mayor.
-function inspirePlayer(uid, kind, id, playerId, managedClubId) {
-  const session = getSession(uid, kind, id);
+async function inspirePlayer(uid, db, kind, id, playerId, managedClubId) {
+  const session = await getSession(db, uid, kind, id);
   if (!session) throw new Error('No hay un partido en curso para este fixture.');
   if (session.finished) throw new Error('El partido ya terminó.');
   if (session.inspiredUsed) throw new Error('Ya usaste tu inspiración en este partido.');
@@ -1282,11 +1331,12 @@ function inspirePlayer(uid, kind, id, playerId, managedClubId) {
   session.inspiredUsed = true;
   session.inspiredPlayerId = player.id;
 
+  await saveSession(db, session.key, session);
   return publicView(session);
 }
 
-function getState(uid, kind, id) {
-  const session = getSession(uid, kind, id);
+async function getState(uid, db, kind, id) {
+  const session = await getSession(db, uid, kind, id);
   if (!session) return null;
   return publicView(session);
 }
@@ -1296,8 +1346,8 @@ function getState(uid, kind, id) {
 // cambios, penal, tanda, entretiempo) pueden usar este valor en vez de volver
 // a pedir la carrera a la base en cada click, ahorrando un round-trip contra
 // Turso por cada boton apretado durante el partido.
-function getManagedClubId(uid, kind, id) {
-  const session = getSession(uid, kind, id);
+async function getManagedClubId(uid, db, kind, id) {
+  const session = await getSession(db, uid, kind, id);
   return session ? session.managedClubId : null;
 }
 

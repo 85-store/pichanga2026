@@ -332,6 +332,18 @@ CREATE TABLE IF NOT EXISTS international_qualifications (
 
 CREATE INDEX IF NOT EXISTS idx_international_qual_season ON international_qualifications(season_year);
 
+-- Sesion de partido en vivo (minuto a minuto): antes vivia solo en un Map en
+-- memoria del proceso, lo que la perdia cada vez que una funcion serverless
+-- distinta (u otra instancia) atendia el siguiente pedido del mismo partido,
+-- mostrando "No hay un partido en curso para este fixture" a mitad de partido.
+-- Se persiste aca (serializada a JSON) para que sobreviva entre pedidos sin
+-- importar que instancia los atienda.
+CREATE TABLE IF NOT EXISTS live_match_sessions (
+  session_key TEXT PRIMARY KEY,
+  state TEXT NOT NULL,
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 CREATE INDEX IF NOT EXISTS idx_fixtures_lookup ON fixtures(season_year, division, jornada);
 CREATE INDEX IF NOT EXISTS idx_copa_lookup ON copa_matches(season_year, round_order);
 CREATE INDEX IF NOT EXISTS idx_players_club ON players(club_id);
