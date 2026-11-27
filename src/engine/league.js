@@ -113,7 +113,14 @@ async function playMatch(db, seasonYear, fixtureId, homeClubId, awayClubId) {
 // jugar en vivo (la misma regla que ya exige assertPlaysInOrder en
 // match-api.js). Sin esto, este atajo le "robaba" el partido al usuario sin
 // que lo jugara, dejandolo sin poder verlo despues.
-async function simulateJornada(db, seasonYear, excludeClubId) {
+// deadline: corta a mitad de jornada si hace falta (no solo entre jornadas -
+// ver el comentario de simulateRemainingLeague mas abajo): con ~15 partidos
+// por jornada entre las 2 divisiones, cada uno con varios round-trips propios
+// a Turso, una sola jornada ya podia superar el presupuesto completo de
+// doAdvanceSeason. Cortar a mitad de jornada es seguro: cada partido ya
+// jugado queda persistido (played=1) y getNextJornada solo mira los fixtures
+// que todavia falten de esa misma jornada en el proximo llamado.
+async function simulateJornada(db, seasonYear, excludeClubId, { deadline } = {}) {
   const results = { jornada: null, matches: [] };
   const tx = await db.transaction('write');
   try {
@@ -128,7 +135,9 @@ async function simulateJornada(db, seasonYear, excludeClubId) {
         if (excludeClubId != null && (f.home_club_id === excludeClubId || f.away_club_id === excludeClubId)) continue;
         const match = await playMatch(tx, seasonYear, f.id, f.home_club_id, f.away_club_id);
         results.matches.push({ ...match, division, jornada });
+        if (deadline && Date.now() >= deadline) break;
       }
+      if (deadline && Date.now() >= deadline) break;
     }
     await tx.commit();
   } catch (err) {
@@ -157,7 +166,7 @@ async function isLeagueComplete(db, seasonYear) {
 async function simulateRemainingLeague(db, seasonYear, { deadline } = {}) {
   const all = { jornadas: [] };
   while (!(await isLeagueComplete(db, seasonYear))) {
-    all.jornadas.push(await simulateJornada(db, seasonYear));
+    all.jornadas.push(await simulateJornada(db, seasonYear, null, { deadline }));
     if (deadline && Date.now() >= deadline) break;
   }
   return all;

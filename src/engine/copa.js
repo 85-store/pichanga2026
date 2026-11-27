@@ -111,7 +111,13 @@ async function playCopaMatch(db, seasonYear, match) {
   return { ...match, home_goals: result.homeGoals, away_goals: result.awayGoals, played: 1, winner_club_id: winnerClubId, decided_by_penalties: decidedByPenalties };
 }
 
-async function simulateNextCopaRound(db, seasonYear) {
+// deadline: ver el comentario en simulateJornada (league.js) sobre por que
+// hace falta cortar a mitad de ronda, no solo entre rondas: la Fase 1 de
+// Copa Chile puede tener hasta 16 partidos en un solo llamado. Si se corta
+// a mitad de ronda, NO se arma la siguiente (necesita el winner_club_id de
+// TODOS los partidos de la ronda actual) - el proximo llamado retoma los
+// partidos que falten de esta misma ronda primero.
+async function simulateNextCopaRound(db, seasonYear, { deadline } = {}) {
   // No se busca la ronda con partidos pendientes (round_order del primer
   // partido sin jugar): "simulateRestOfRound" en match-api.js adelanta con el
   // motor rapido TODOS los partidos de la ronda del usuario en el momento en
@@ -133,14 +139,19 @@ async function simulateNextCopaRound(db, seasonYear) {
   const results = [];
   let advanced = false;
 
+  let cutShort = false;
   const tx = await db.transaction('write');
   try {
     for (const m of roundMatches) {
       results.push(await playCopaMatch(tx, seasonYear, m));
+      if (deadline && Date.now() >= deadline) {
+        cutShort = true;
+        break;
+      }
     }
 
     const nextRoundOrder = roundOrder + 1;
-    if (ROUND_NAMES[nextRoundOrder]) {
+    if (!cutShort && ROUND_NAMES[nextRoundOrder]) {
       const existingNext = await tx
         .prepare('SELECT COUNT(*) as c FROM copa_matches WHERE season_year = ? AND round_order = ?')
         .get(seasonYear, nextRoundOrder);
@@ -179,7 +190,7 @@ async function simulateNextCopaRound(db, seasonYear) {
 async function simulateRemainingCopa(db, seasonYear, { deadline } = {}) {
   const rounds = [];
   let round;
-  while ((round = await simulateNextCopaRound(db, seasonYear))) {
+  while ((round = await simulateNextCopaRound(db, seasonYear, { deadline }))) {
     rounds.push(round);
     if (deadline && Date.now() >= deadline) break;
   }
