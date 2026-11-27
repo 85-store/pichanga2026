@@ -202,18 +202,44 @@ function advanceSeason(db) {
   return advanceSeasonInFlight;
 }
 
+// Presupuesto de tiempo por pedido para terminar de simular lo que falte de
+// la temporada anterior (liga/copa/copa de la liga). Completar de una sola
+// pasada una temporada recien empezada (cientos de partidos pendientes de
+// ~30 clubes) colgaba el pedido por minutos - ver el comentario en
+// simulateRemainingLeague (league.js). Si el presupuesto no alcanza, esta
+// funcion corta, deja lo ya jugado persistido, y devuelve { pending: true }
+// sin tocar lesiones/retiros/juveniles ni avanzar el año: el llamador
+// (/api/calendar o /api/season/advance) vuelve a invocarla en el siguiente
+// pedido y retoma donde quedo, hasta que de verdad este todo listo para
+// cerrar la temporada.
+const ADVANCE_SEASON_BUDGET_MS = 8000;
+
 async function doAdvanceSeason(db) {
   const previousYear = await getCurrentSeasonYear(db);
   if (previousYear == null) throw new Error('No hay temporada actual configurada.');
   const currentYear = previousYear + 1;
+  const deadline = Date.now() + ADVANCE_SEASON_BUDGET_MS;
 
   // Si quedan jornadas o rondas de copa sin jugar, se completan automaticamente
   // antes de cerrar la temporada (fuera de la transaccion principal: cada partido
   // ya es atomico dentro del motor de liga/copa).
   await ensureSeasonCompetitions(db, previousYear);
-  if (!(await isLeagueComplete(db, previousYear))) await simulateRemainingLeague(db, previousYear);
-  if (!(await isCopaComplete(db, previousYear))) await simulateRemainingCopa(db, previousYear);
-  if (!(await isCopaLigaComplete(db, previousYear))) await simulateRemainingCopaLiga(db, previousYear);
+  if (!(await isLeagueComplete(db, previousYear))) await simulateRemainingLeague(db, previousYear, { deadline });
+  if (Date.now() < deadline && !(await isCopaComplete(db, previousYear))) {
+    await simulateRemainingCopa(db, previousYear, { deadline });
+  }
+  if (Date.now() < deadline && !(await isCopaLigaComplete(db, previousYear))) {
+    await simulateRemainingCopaLiga(db, previousYear);
+  }
+
+  if (
+    !(await isLeagueComplete(db, previousYear)) ||
+    !(await isCopaComplete(db, previousYear)) ||
+    !(await isCopaLigaComplete(db, previousYear))
+  ) {
+    return { previousYear, pending: true };
+  }
+
   const superCopaResult = await playSuperCopaIfPending(db, previousYear);
 
   const board = await reviewSeason(db, previousYear);

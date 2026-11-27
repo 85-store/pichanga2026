@@ -783,6 +783,28 @@ function renderCopaData(data) {
   }
 }
 
+function scMatchHtml(match, label) {
+  const home = clubById(match.home_club_id) || { crest_url: match.home_crest, name: match.home_name, short_name: match.home_short };
+  const away = clubById(match.away_club_id) || { crest_url: match.away_crest, name: match.away_name, short_name: match.away_short };
+  const canWatch = !match.played && (isManagedClub(match.home_club_id) || isManagedClub(match.away_club_id));
+  if (match.skipped_reason) {
+    return `
+      <div class="copa-match">
+        ${label ? `<div style="color:var(--text-dim);font-size:11px;margin-bottom:4px">${escapeHtml(label)}</div>` : ''}
+        <div class="cm-team winner">${crestImg(home, 16)} ${escapeHtml(home.short_name || home.name)}</div>
+        <div style="color:var(--text-dim);font-size:11px;margin-top:4px">Pasa directo: ganó la liga y la otra competición a la vez.</div>
+      </div>`;
+  }
+  return `
+    <div class="copa-match">
+      ${label ? `<div style="color:var(--text-dim);font-size:11px;margin-bottom:4px">${escapeHtml(label)}</div>` : ''}
+      <div class="cm-team ${match.played && match.winner_club_id === match.home_club_id ? 'winner' : ''}">${crestImg(home, 16)} ${escapeHtml(home.short_name || home.name)} <span>${match.played ? match.home_goals : ''}</span></div>
+      <div class="cm-team ${match.played && match.winner_club_id === match.away_club_id ? 'winner' : ''}">${crestImg(away, 16)} ${escapeHtml(away.short_name || away.name)} <span>${match.played ? match.away_goals : ''}</span></div>
+      ${match.decided_by_penalties ? '<div style="color:var(--text-dim);font-size:11px;margin-top:4px">Definido por penales</div>' : ''}
+      ${canWatch ? `<button class="watch-btn" data-watch-kind="supercopa" data-watch-id="${match.id}">▶ Ver</button>` : ''}
+    </div>`;
+}
+
 async function renderSuperCopaView() {
   mainView.innerHTML = partidosTabBarHtml('supercopa') + '<div class="empty-state">Cargando…</div>';
   const data = await api('/super-copa');
@@ -790,57 +812,53 @@ async function renderSuperCopaView() {
 }
 
 function renderSuperCopaData(data) {
-  const { match, seasonYear } = data;
+  const { seasonYear, semifinal1, semifinal2, final, complete } = data;
 
-  if (!match) {
+  if (!semifinal1 || !semifinal2) {
     mainView.innerHTML = `
       ${partidosTabBarHtml('supercopa')}
       <div class="view-header"><div><h1>⭐ Supercopa</h1><div class="sub">Temporada ${seasonYear}</div></div></div>
-      <div class="empty-state">La Supercopa de esta temporada todavía no está definida (se juega una vez que haya
-      campeón de Primera A y de Copa Chile de la temporada anterior).</div>`;
+      <div class="empty-state">La Supercopa de esta temporada todavía no está definida (se juega una vez que estén
+      los 4 clasificados de la temporada anterior: campeón y subcampeón de Primera A, campeón de Copa Chile y
+      campeón de Copa de la Liga).</div>`;
     wirePartidosTabBar();
     return;
   }
 
-  if (match.skipped_reason) {
-    mainView.innerHTML = `
-      ${partidosTabBarHtml('supercopa')}
-      <div class="view-header"><div><h1>⭐ Supercopa</h1><div class="sub">Temporada ${seasonYear}</div></div></div>
-      <div class="empty-state">Se omitió la Supercopa: ${escapeHtml(match.home_name)} ganó tanto la liga como la
-      Copa Chile la temporada anterior.</div>`;
-    wirePartidosTabBar();
-    return;
-  }
+  const championClub = final && final.played && final.winner_club_id ? clubById(final.winner_club_id) : null;
+  const semisHtml = `
+    <div class="copa-round">
+      <h4>Semifinales</h4>
+      ${scMatchHtml(semifinal1, 'Semifinal 1')}
+      ${scMatchHtml(semifinal2, 'Semifinal 2')}
+    </div>`;
+  const finalHtml = final ? `<div class="copa-round"><h4>Final (sede neutral)</h4>${scMatchHtml(final)}</div>` : '';
 
-  const home = clubById(match.home_club_id) || { crest_url: match.home_crest, name: match.home_name, short_name: match.home_short };
-  const away = clubById(match.away_club_id) || { crest_url: match.away_crest, name: match.away_name, short_name: match.away_short };
-  const canWatch = !match.played && (isManagedClub(match.home_club_id) || isManagedClub(match.away_club_id));
+  const simBtn = !complete
+    ? '<button class="sim-btn" id="sim-supercopa-btn">Simular siguiente etapa</button>'
+    : '<span class="badge-complete">Supercopa completa ✓</span>';
 
   mainView.innerHTML = `
     ${partidosTabBarHtml('supercopa')}
-    <div class="view-header"><div><h1>⭐ Supercopa</h1><div class="sub">Temporada ${seasonYear}${match.played ? ' · Campeón: ' + escapeHtml(match.winner_name) : ''}</div></div></div>
-    <div class="copa-bracket">
-      <div class="copa-round">
-        <h4>Final</h4>
-        <div class="copa-match">
-          <div class="cm-team ${match.played && match.winner_club_id === match.home_club_id ? 'winner' : ''}">${crestImg(home, 16)} ${escapeHtml(home.short_name || home.name)} <span>${match.played ? match.home_goals : ''}</span></div>
-          <div class="cm-team ${match.played && match.winner_club_id === match.away_club_id ? 'winner' : ''}">${crestImg(away, 16)} ${escapeHtml(away.short_name || away.name)} <span>${match.played ? match.away_goals : ''}</span></div>
-          ${match.decided_by_penalties ? '<div style="color:var(--text-dim);font-size:11px;margin-top:4px">Definido por penales</div>' : ''}
-          ${canWatch ? `<button class="watch-btn" data-watch-kind="supercopa" data-watch-id="${match.id}">▶ Ver</button>` : ''}
-          ${!match.played && !canWatch ? `<button class="sim-btn" id="sim-supercopa-btn">Simular Supercopa</button>` : ''}
-        </div>
+    <div class="view-header">
+      <div>
+        <h1>⭐ Supercopa</h1>
+        <div class="sub">Temporada ${seasonYear}${championClub ? ' · Campeón: ' + escapeHtml(championClub.name) : ''}</div>
       </div>
-    </div>`;
+    </div>
+    <div class="view-toolbar">${simBtn}</div>
+    <div class="copa-bracket">${semisHtml}${finalHtml}</div>`;
 
   wirePartidosTabBar();
-  const simBtn = document.getElementById('sim-supercopa-btn');
-  if (simBtn) {
-    simBtn.addEventListener('click', async () => {
-      simBtn.disabled = true;
-      simBtn.textContent = 'Simulando…';
+  const btn = document.getElementById('sim-supercopa-btn');
+  if (btn) {
+    btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      btn.textContent = 'Simulando…';
       try {
-        await api('/super-copa/simulate', { method: 'POST' });
-        renderSuperCopaView();
+        await api('/super-copa/simulate-step', { method: 'POST' });
+        const fresh = await api('/super-copa');
+        renderSuperCopaData(fresh);
         if (window.checkCareerEvents) window.checkCareerEvents();
       } catch (e) {
         alert('Error al simular la Supercopa: ' + e.message);
@@ -1242,8 +1260,19 @@ function calendarEntryHtml(entry) {
 // window.onMatchFinished), que es el momento en que la temporada realmente
 // puede haber quedado sin nada pendiente.
 async function checkSeasonAutoAdvance() {
-  const calendar = await api('/calendar');
-  if (calendar.seasonAdvance) {
+  let calendar = await api('/calendar');
+  // Si queda mucho por simular (liga/copa de otros clubes), el servidor corta
+  // por presupuesto de tiempo y devuelve pending=true en vez de colgar el
+  // pedido (ver doAdvanceSeason en season.js): se reintenta un par de veces
+  // mas aqui mismo, cada pedido retoma donde quedo el anterior, hasta que
+  // quede listo o se agoten los reintentos (ahi se deja seguir con el
+  // calendario vacio en vez de trabar al usuario para siempre).
+  let attempts = 0;
+  while (calendar.seasonAdvance && calendar.seasonAdvance.pending && attempts < 6) {
+    attempts++;
+    calendar = await api('/calendar');
+  }
+  if (calendar.seasonAdvance && !calendar.seasonAdvance.pending) {
     const result = calendar.seasonAdvance;
     await Promise.all([loadSeason(), loadClubs(), loadCareer()]);
     if (window.refreshRightSidebar) window.refreshRightSidebar();
@@ -1520,7 +1549,21 @@ advanceBtn.addEventListener('click', async () => {
   advanceBtn.disabled = true;
   advanceBtn.textContent = 'Simulando…';
   try {
-    const result = await api('/season/advance', { method: 'POST' });
+    // Si queda mucho partido pendiente de otros clubes (liga/copa), el
+    // servidor corta por presupuesto de tiempo y devuelve pending=true en vez
+    // de colgar el pedido (ver doAdvanceSeason en season.js): se reintenta
+    // automaticamente, mostrando progreso, hasta que quede listo.
+    let result = await api('/season/advance', { method: 'POST' });
+    let attempts = 0;
+    while (result && result.pending && attempts < 20) {
+      attempts++;
+      advanceBtn.textContent = `Simulando… (${attempts})`;
+      result = await api('/season/advance', { method: 'POST' });
+    }
+    if (result && result.pending) {
+      alert('Sigue simulando partidos pendientes, probá apretar "Avanzar temporada" de nuevo en un rato.');
+      return;
+    }
     await loadSeason();
     await loadClubs();
     await loadCareer();

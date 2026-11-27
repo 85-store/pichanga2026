@@ -175,10 +175,14 @@ async function simulateNextCopaRound(db, seasonYear) {
   return { round_name: latest.round_name, matches: results };
 }
 
-async function simulateRemainingCopa(db, seasonYear) {
+// deadline: ver el comentario equivalente en league.js simulateRemainingLeague.
+async function simulateRemainingCopa(db, seasonYear, { deadline } = {}) {
   const rounds = [];
   let round;
-  while ((round = await simulateNextCopaRound(db, seasonYear))) rounds.push(round);
+  while ((round = await simulateNextCopaRound(db, seasonYear))) {
+    rounds.push(round);
+    if (deadline && Date.now() >= deadline) break;
+  }
   return rounds;
 }
 

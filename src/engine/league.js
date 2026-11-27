@@ -146,10 +146,19 @@ async function isLeagueComplete(db, seasonYear) {
   return true;
 }
 
-async function simulateRemainingLeague(db, seasonYear) {
+// deadline: timestamp limite (Date.now() + presupuesto) para no colgar la
+// funcion serverless completando de golpe toda una liga de ~30 clubes de una
+// temporada recien empezada (cientos de partidos, cada uno con sus propios
+// round-trips a Turso). Sin esto, /api/calendar (que dispara esto solo cuando
+// al usuario no le queda nada pendiente) y el boton "Avanzar temporada"
+// colgaban el pedido por minutos. Al cortar por tiempo, deja lo jugado hasta
+// ahi ya persistido (cada jornada es su propia transaccion) y el llamador
+// (doAdvanceSeason) reintenta en el siguiente pedido hasta completarla.
+async function simulateRemainingLeague(db, seasonYear, { deadline } = {}) {
   const all = { jornadas: [] };
   while (!(await isLeagueComplete(db, seasonYear))) {
     all.jornadas.push(await simulateJornada(db, seasonYear));
+    if (deadline && Date.now() >= deadline) break;
   }
   return all;
 }
@@ -169,6 +178,14 @@ async function applyPromotionRelegation(db, seasonYear) {
       'Campeón Primera A'
     );
     events.champion = tableA[0].name;
+  }
+
+  if (tableA.length > 1) {
+    await db.prepare(`INSERT INTO club_titles (club_id, season_year, title_name) VALUES (?, ?, ?)`).run(
+      tableA[1].club_id,
+      seasonYear,
+      'Subcampeón Primera A'
+    );
   }
 
   const toRelegate = tableA.slice(-RELEGATION_SPOTS);
