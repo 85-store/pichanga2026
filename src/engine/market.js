@@ -509,6 +509,7 @@ async function getIncomingOffers(db, myClubId, seasonYear, window) {
 }
 
 async function acceptIncomingOffer(db, offerId, seasonYear) {
+  if (!Number.isFinite(offerId)) throw new Error('Esta oferta ya no está disponible.');
   const offer = await db.prepare('SELECT * FROM transfer_offers WHERE id = ?').get(offerId);
   if (!offer || offer.status !== 'pendiente') throw new Error('Esta oferta ya no está disponible.');
   const player = await db.prepare('SELECT * FROM players WHERE id = ?').get(offer.player_id);
@@ -538,6 +539,7 @@ async function acceptIncomingOffer(db, offerId, seasonYear) {
 }
 
 async function declineIncomingOffer(db, offerId) {
+  if (!Number.isFinite(offerId)) throw new Error('Esta oferta ya no está disponible.');
   const offer = await db.prepare('SELECT * FROM transfer_offers WHERE id = ?').get(offerId);
   if (!offer || offer.status !== 'pendiente') throw new Error('Esta oferta ya no está disponible.');
   await db.prepare(`UPDATE transfer_offers SET status = 'rechazada' WHERE id = ?`).run(offerId);
