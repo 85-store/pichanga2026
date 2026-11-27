@@ -20,6 +20,7 @@ const {
 } = require('../engine/copa-liga');
 const { getInternationalQualifications } = require('../engine/international');
 const { getSuperCopa, isSuperCopaPending, playSuperCopaIfPending } = require('../engine/super-copa');
+const { healAllInjuries } = require('../engine/injuries');
 const { getCareer, getPendingOffers, acceptOffer, declineOffer } = require('../engine/board');
 const { listIdentities, setTeamIdentity } = require('../engine/team-identity');
 const { getSavedLineup, saveLineup } = require('../engine/tactics');
@@ -561,6 +562,20 @@ function buildApiRouter() {
       }
       const result = await playSuperCopaIfPending(db, seasonYear);
       res.json(result);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Cura de golpe todas las lesiones abiertas de la partida: existia para
+  // compensar lesiones que quedaron atascadas de antes de que el motor
+  // empezara a hacerlas avanzar semana a semana (ver injuries.js).
+  router.post('/injuries/heal-all', async (req, res) => {
+    try {
+      const db = req.db;
+      const seasonYear = await getCurrentSeasonYear(db);
+      const result = await healAllInjuries(db, seasonYear);
+      res.json({ healed: result.healedCount });
     } catch (err) {
       res.status(500).json({ error: err.message });
     }

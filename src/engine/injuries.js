@@ -113,6 +113,27 @@ async function tickInjuriesOneWeek(db, currentYear) {
   if (stmts.length) await db.batch(stmts);
 }
 
+// Cura de golpe toda lesion abierta (avanzando sus semanas de un salto) y,
+// ademas, repara cualquier jugador que haya quedado con status='lesionado'
+// sin ninguna fila en injuries (huerfano de algun bug viejo) o con todas sus
+// filas ya recovered=1 pero sin que el status se haya revertido - en ambos
+// casos getInjuryProgressStmts no los toca porque no itera sobre jugadores,
+// solo sobre lesiones abiertas.
+async function healAllInjuries(db, currentYear) {
+  const stmts = await getInjuryProgressStmts(db, currentYear, 999999);
+  const orphans = await db
+    .prepare(
+      `SELECT id FROM players WHERE status = 'lesionado'
+       AND id NOT IN (SELECT player_id FROM injuries WHERE recovered = 0)`
+    )
+    .all();
+  for (const p of orphans) {
+    stmts.push({ sql: "UPDATE players SET status = 'activo' WHERE id = ?", args: [p.id] });
+  }
+  if (stmts.length) await db.batch(stmts);
+  return { healedCount: stmts.filter((s) => s.sql.includes("status = 'activo'")).length };
+}
+
 module.exports = {
   INJURY_TYPES,
   SEVERITIES,
@@ -121,4 +142,5 @@ module.exports = {
   injuryProbability,
   getInjuryProgressStmts,
   tickInjuriesOneWeek,
+  healAllInjuries,
 };

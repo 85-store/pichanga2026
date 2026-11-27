@@ -242,6 +242,14 @@ table.standings tr.highlight-club { background: var(--panel-2); }
 }
 .match-history-btn:hover { border-color: var(--accent); color: var(--accent); }
 
+.heal-injuries-btn {
+  margin-left: auto; background: var(--panel-2); color: var(--text);
+  border: 1px solid var(--border); border-radius: 8px; padding: 9px 14px;
+  font-size: 13px; cursor: pointer; white-space: nowrap;
+}
+.heal-injuries-btn:hover { border-color: var(--accent); color: var(--accent); }
+.heal-injuries-btn:disabled { opacity: 0.6; cursor: default; }
+
 .copa-hint {
   background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px;
   padding: 10px 12px; margin-bottom: 16px; color: var(--text-dim); font-size: 13px;

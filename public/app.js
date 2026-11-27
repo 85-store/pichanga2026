@@ -429,6 +429,8 @@ function renderClubView(data) {
     return;
   }
 
+  const hasInjured = roster.some((p) => p.status === 'lesionado');
+
   mainView.innerHTML = `
     <div class="view-header">
       ${crestImg(club, 52)}
@@ -436,6 +438,7 @@ function renderClubView(data) {
         <h1>${escapeHtml(club.name)}</h1>
         <div class="sub">${escapeHtml(club.division)} · ${escapeHtml(club.city || '')} · ${escapeHtml(club.stadium || '')} · ${roster.length} jugadores</div>
       </div>
+      ${hasInjured ? '<button class="heal-injuries-btn" id="healInjuriesBtn">🩹 Curar lesionados</button>' : ''}
     </div>
     <table class="roster">
       <thead>
@@ -464,6 +467,24 @@ function renderClubView(data) {
   mainView.querySelectorAll('tr[data-id]').forEach((row) => {
     row.addEventListener('click', () => openPlayer(Number(row.dataset.id)));
   });
+
+  const healBtn = document.getElementById('healInjuriesBtn');
+  if (healBtn) {
+    healBtn.addEventListener('click', async (ev) => {
+      ev.stopPropagation();
+      healBtn.disabled = true;
+      healBtn.textContent = 'Curando...';
+      try {
+        const result = await api('/injuries/heal-all', { method: 'POST' });
+        alert(`Se curaron ${result.healed} lesión(es).`);
+        openClub(club.id);
+      } catch (err) {
+        alert('No se pudo curar: ' + err.message);
+        healBtn.disabled = false;
+        healBtn.textContent = '🩹 Curar lesionados';
+      }
+    });
+  }
 }
 
 async function openPlayer(playerId) {
