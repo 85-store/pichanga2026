@@ -41,14 +41,14 @@ const SEVERITY_WEIGHTS_BY_TYPE = {
 // Probabilidad base de sufrir (al menos) una lesion relevante en la temporada,
 // ajustada por edad y estado fisico (aproximado por edad + historial reciente).
 function injuryProbability({ age, hadInjuryLastSeason }) {
-  let base = 0.06;
-  if (age < 23) base -= 0.015;
-  else if (age >= 34) base += 0.03;
-  else if (age >= 30) base += 0.015;
+  let base = 0.035;
+  if (age < 23) base -= 0.01;
+  else if (age >= 34) base += 0.02;
+  else if (age >= 30) base += 0.01;
 
-  if (hadInjuryLastSeason) base += 0.02; // mas propenso tras una lesion reciente (recaida)
+  if (hadInjuryLastSeason) base += 0.012; // mas propenso tras una lesion reciente (recaida)
 
-  return Math.min(0.1, Math.max(0.015, base));
+  return Math.min(0.06, Math.max(0.008, base));
 }
 
 function rollInjury({ age, hadInjuryLastSeason, lastInjuryType }) {
@@ -74,4 +74,51 @@ function rollMatchInjury() {
   return { injuryType, severity, weeksOut };
 }
 
-module.exports = { INJURY_TYPES, SEVERITIES, rollInjury, rollMatchInjury, injuryProbability };
+// Arma (sin ejecutar) las escrituras que hacen avanzar "weeks" semanas las
+// lesiones abiertas (de CUALQUIER club, no solo el del usuario): resta
+// semanas y marca recuperados + reactiva el status del jugador a los que
+// llegan a 0. Se devuelve como statements en vez de escribirse directo para
+// que el llamador los pueda sumar a su propio batch (live-match.js, que ya
+// junta todo el cierre del partido en una sola escritura) o ejecutarlos
+// sueltos (los motores rapidos de liga/copa/copa de la liga/supercopa).
+async function getInjuryProgressStmts(db, currentYear, weeks) {
+  const openInjuries = await db.prepare('SELECT * FROM injuries WHERE recovered = 0').all();
+  const stmts = [];
+  for (const inj of openInjuries) {
+    const remaining = inj.weeks_remaining - weeks;
+    if (remaining <= 0) {
+      stmts.push({ sql: 'UPDATE injuries SET weeks_remaining = 0, recovered = 1 WHERE id = ?', args: [inj.id] });
+      stmts.push({ sql: "UPDATE players SET status = 'activo' WHERE id = ? AND status = 'lesionado'", args: [inj.player_id] });
+      stmts.push({
+        sql: `INSERT INTO player_history_events (player_id, season_year, event_type, description) VALUES (?, ?, 'recuperacion', ?)`,
+        args: [inj.player_id, currentYear, `Se recuperó de una lesión ${inj.injury_type.toLowerCase()} (${inj.severity.toLowerCase()}).`],
+      });
+    } else {
+      stmts.push({ sql: 'UPDATE injuries SET weeks_remaining = ? WHERE id = ?', args: [remaining, inj.id] });
+    }
+  }
+  return stmts;
+}
+
+// Antes las lesiones solo avanzaban una vez por temporada (ver
+// progressInjuries en season.js), asi que un jugador lesionado a mitad de
+// temporada quedaba "lesionado" en la base el resto de la temporada entera
+// sin importar que su baja estimada fuera de pocas semanas - recien se curaba
+// de un salto grande (por diseño) al cerrar la temporada. Esto hace avanzar 1
+// semana cada vez que se juega una fecha/ronda de cualquier competicion (en
+// vivo o con el motor rapido), que es la unica nocion de "tiempo" que existe
+// hoy en el motor.
+async function tickInjuriesOneWeek(db, currentYear) {
+  const stmts = await getInjuryProgressStmts(db, currentYear, 1);
+  if (stmts.length) await db.batch(stmts);
+}
+
+module.exports = {
+  INJURY_TYPES,
+  SEVERITIES,
+  rollInjury,
+  rollMatchInjury,
+  injuryProbability,
+  getInjuryProgressStmts,
+  tickInjuriesOneWeek,
+};

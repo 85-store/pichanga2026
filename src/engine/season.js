@@ -1,6 +1,6 @@
 const { ageInSeason } = require('./age');
 const { rollRetirement } = require('./retirement');
-const { rollInjury } = require('./injuries');
+const { rollInjury, getInjuryProgressStmts } = require('./injuries');
 const { generateYouthPlayer, youthCountForClub } = require('./youth');
 const { recallDueLoans, simulateAiTransferMarket } = require('./market');
 const {
@@ -45,28 +45,13 @@ async function ensureFirstSeason(db, year) {
 // Batcheado (1 lectura + 1 escritura por avance de temporada en vez de hasta 3
 // round-trips awaiteados por lesion abierta): ver el comentario de
 // rollNewInjuries mas abajo sobre por que esto importaba para el avance
-// automatico de temporada.
+// automatico de temporada. Esto es ademas de (no en vez de) el avance semana a
+// semana que ya ocurre durante la temporada via tickInjuriesOneWeek (ver
+// injuries.js): es la red de seguridad que garantiza que ninguna lesion llegue
+// sin resolver a la temporada siguiente.
 async function progressInjuries(db, currentYear) {
-  const openInjuries = await db
-    .prepare(`SELECT * FROM injuries WHERE recovered = 0`)
-    .all();
-  if (!openInjuries.length) return;
-
-  const stmts = [];
-  for (const inj of openInjuries) {
-    const remaining = inj.weeks_remaining - SEASON_WEEKS;
-    if (remaining <= 0) {
-      stmts.push({ sql: 'UPDATE injuries SET weeks_remaining = 0, recovered = 1 WHERE id = ?', args: [inj.id] });
-      stmts.push({ sql: "UPDATE players SET status = 'activo' WHERE id = ? AND status = 'lesionado'", args: [inj.player_id] });
-      stmts.push({
-        sql: `INSERT INTO player_history_events (player_id, season_year, event_type, description) VALUES (?, ?, 'recuperacion', ?)`,
-        args: [inj.player_id, currentYear, `Se recuperó de una lesión ${inj.injury_type.toLowerCase()} (${inj.severity.toLowerCase()}).`],
-      });
-    } else {
-      stmts.push({ sql: 'UPDATE injuries SET weeks_remaining = ? WHERE id = ?', args: [remaining, inj.id] });
-    }
-  }
-  await db.batch(stmts);
+  const stmts = await getInjuryProgressStmts(db, currentYear, SEASON_WEEKS);
+  if (stmts.length) await db.batch(stmts);
 }
 
 // Trae de una sola vez la ultima lesion de la temporada pasada de CADA

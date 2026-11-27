@@ -3,7 +3,7 @@
 // pausar, acelerar, cambiar tacticas y hacer cambios mientras se juega.
 // Al terminar, persiste exactamente igual que el motor rapido de liga/copa.
 const { chance, randInt, weightedPick } = require('./random');
-const { rollMatchInjury } = require('./injuries');
+const { rollMatchInjury, getInjuryProgressStmts } = require('./injuries');
 const { recordMatchStats } = require('./finalize-match');
 const { FORMATIONS } = require('./formations');
 const { isRivalryPair } = require('./career-events');
@@ -651,7 +651,12 @@ function simulateMinute(session) {
       // por plantel (normalmente), una lesion lo deja fuera de la posicion por
       // semanas y rompe la alineacion del club. Se excluyen de este chequeo.
       if (p.position === 'Portero') continue;
-      if (chance(0.00055)) {
+      // Esto se evalua por jugador en cancha (~20) y por minuto (~90): con
+      // 0.00055 la chance de que ocurriera AL MENOS una lesion en un partido
+      // completo era ~63% (1-(1-0.00055)^1800) - practicamente un lesionado
+      // por partido visto en vivo. 0.00004 deja esa chance en ~7%, mas cerca
+      // de 1 lesion de partido cada 10-15 partidos.
+      if (chance(0.00004)) {
         const injury = rollMatchInjury();
         session.injuries.push({ player: p, injury, minute });
         session.halfEventCount[session.half] = (session.halfEventCount[session.half] || 0) + 1;
@@ -983,6 +988,14 @@ async function finalize(db, session, opts) {
       ],
     });
   }
+
+  // Cada partido que el usuario termina de jugar representa, en la unica
+  // nocion de "tiempo" que existe en el motor, una semana - se aprovecha para
+  // hacer avanzar las lesiones abiertas de CUALQUIER club (no solo el
+  // dirigido), fusionado en esta misma escritura para no agregar otro
+  // round-trip a Turso justo en el momento en que el partido ya se sentia
+  // "pegado" (ver el comentario mas arriba sobre finalizeStmts).
+  finalizeStmts.push(...(await getInjuryProgressStmts(db, session.seasonYear, 1)));
   await db.batch(finalizeStmts);
 
   // Titulo que se festeja de inmediato (pantalla de felicitaciones), solo

@@ -2,6 +2,7 @@
 // sorteada al inicio de temporada. Empates se definen por penales.
 const { simulateMatch, decidePenalties, teamStrength, pickLineup } = require('./match');
 const { recordMatchStats } = require('./finalize-match');
+const { tickInjuriesOneWeek } = require('./injuries');
 
 const ROUND_NAMES = ['Fase 1', 'Octavos de final', 'Cuartos de final', 'Semifinal', 'Final'];
 
@@ -170,6 +171,7 @@ async function simulateNextCopaRound(db, seasonYear) {
   }
 
   if (!results.length && !advanced) return null;
+  if (results.length) await tickInjuriesOneWeek(db, seasonYear);
   return { round_name: latest.round_name, matches: results };
 }
 

@@ -2,6 +2,7 @@
 // Chile de la temporada anterior, jugado al inicio de la nueva temporada.
 const { simulateMatch, decidePenalties } = require('./match');
 const { recordMatchStats } = require('./finalize-match');
+const { tickInjuriesOneWeek } = require('./injuries');
 
 async function titleChampion(db, seasonYear, titleName) {
   const row = await db
@@ -100,6 +101,8 @@ async function playSuperCopaMatch(db, seasonYear, match) {
     seasonYear,
     'Campeón Supercopa'
   );
+
+  await tickInjuriesOneWeek(db, seasonYear);
 
   return { ...match, winner_club_id: winnerClubId, decided_by_penalties: decidedByPenalties };
 }

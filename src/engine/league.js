@@ -3,6 +3,7 @@
 const { generateRoundRobin } = require('./fixtures');
 const { simulateMatch } = require('./match');
 const { recordMatchStats } = require('./finalize-match');
+const { tickInjuriesOneWeek } = require('./injuries');
 
 const DIVISIONS = ['Primera A', 'Primera B'];
 const RELEGATION_SPOTS = 2; // ultimos 2 de Primera A descienden
@@ -134,6 +135,7 @@ async function simulateJornada(db, seasonYear, excludeClubId) {
     await tx.rollback();
     throw err;
   }
+  if (results.matches.length) await tickInjuriesOneWeek(db, seasonYear);
   return results;
 }
 

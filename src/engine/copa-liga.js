@@ -6,6 +6,7 @@
 const { generateRoundRobin } = require('./fixtures');
 const { simulateMatch, decidePenalties } = require('./match');
 const { recordMatchStats } = require('./finalize-match');
+const { tickInjuriesOneWeek } = require('./injuries');
 
 const GROUP_NAMES = ['A', 'B', 'C', 'D'];
 
@@ -376,12 +377,15 @@ async function advanceCopaLiga(db, seasonYear) {
   await ensureCopaLigaDraw(db, seasonYear);
 
   if (!(await isGroupStageComplete(db, seasonYear))) {
-    return { stage: 'grupos', matches: await simulateGroupStage(db, seasonYear) };
+    const matches = await simulateGroupStage(db, seasonYear);
+    if (matches.length) await tickInjuriesOneWeek(db, seasonYear);
+    return { stage: 'grupos', matches };
   }
 
   await ensureSemifinals(db, seasonYear);
   if (!(await isSemifinalStageComplete(db, seasonYear))) {
     const leg = await simulateNextSemifinalLeg(db, seasonYear);
+    if (leg) await tickInjuriesOneWeek(db, seasonYear);
     return { stage: 'semifinal', matches: leg ? [leg] : [] };
   }
 
@@ -389,6 +393,7 @@ async function advanceCopaLiga(db, seasonYear) {
   const final = await db.prepare(`SELECT * FROM copa_liga_matches WHERE season_year = ? AND stage = 'final'`).get(seasonYear);
   if (final && !final.played) {
     const played = await playCopaLigaMatch(db, seasonYear, final, { allowPenalties: true });
+    await tickInjuriesOneWeek(db, seasonYear);
     return { stage: 'final', matches: [played] };
   }
 
