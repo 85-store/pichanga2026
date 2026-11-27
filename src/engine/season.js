@@ -229,7 +229,7 @@ async function doAdvanceSeason(db) {
     await simulateRemainingCopa(db, previousYear, { deadline });
   }
   if (Date.now() < deadline && !(await isCopaLigaComplete(db, previousYear))) {
-    await simulateRemainingCopaLiga(db, previousYear);
+    await simulateRemainingCopaLiga(db, previousYear, { deadline });
   }
 
   if (

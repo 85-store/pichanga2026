@@ -400,7 +400,13 @@ async function advanceCopaLiga(db, seasonYear) {
   return { stage: 'completa', matches: [] };
 }
 
-async function simulateRemainingCopaLiga(db, seasonYear) {
+// deadline: ver el comentario equivalente en league.js simulateRemainingLeague.
+// Importante pasarlo tambien aqui: el primer paso de "grupos" (simulateGroupStage)
+// puede jugar de golpe TODOS los partidos de grupo pendientes de los 4 grupos
+// en una sola transaccion - sin este chequeo entre pasos, el guard<200 por si
+// solo no alcanzaba a cortar a tiempo un avance de temporada con el grupo
+// completo sin jugar.
+async function simulateRemainingCopaLiga(db, seasonYear, { deadline } = {}) {
   const steps = [];
   let guard = 0;
   while (!(await isCopaLigaComplete(db, seasonYear)) && guard < 200) {
@@ -408,6 +414,7 @@ async function simulateRemainingCopaLiga(db, seasonYear) {
     steps.push(step);
     if (step.stage === 'completa') break;
     guard++;
+    if (deadline && Date.now() >= deadline) break;
   }
   return steps;
 }
