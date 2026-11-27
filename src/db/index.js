@@ -9,7 +9,7 @@ const SCHEMA_PATH = path.join(__dirname, 'schema.sql');
 // columna, una migracion de tabla, o se cambie BUDGET_TOPUP_VERSION) - es lo
 // que hace que ese guardado vuelva a pasar por toda la cadena de migracion
 // una vez mas. Si no se sube, un guardado que ya esta al dia se la salta.
-const SCHEMA_VERSION = 2;
+const SCHEMA_VERSION = 3;
 
 async function columnExists(db, table, column) {
   const rows = await db.prepare(`PRAGMA table_info(${table})`).all();
@@ -171,6 +171,7 @@ async function migrate(db) {
   }
   await migrateCareerEventsKindPrensa(db);
   await migrateSentOffersCounterOffers(db);
+  await migrateSuperCopaStages(db);
   await backfillClubBudgets(db);
   await backfillClubTactics(db);
 }
@@ -200,6 +201,36 @@ async function migrateSentOffersCounterOffers(db) {
     INSERT INTO sent_offers (id, season_year, window, player_name, target_club_name, amount, kind, status, created_at)
       SELECT id, season_year, window, player_name, target_club_name, amount, kind, status, created_at FROM sent_offers_old;
     DROP TABLE sent_offers_old;
+  `);
+}
+
+// super_copa_matches nacio como un partido unico por temporada (UNIQUE
+// season_year), pero la nueva Supercopa tiene 2 semifinales + final por
+// temporada. SQLite no soporta ALTER TABLE ... DROP CONSTRAINT, asi que hay
+// que reconstruir la tabla con una columna stage y UNIQUE(season_year, stage).
+// Los partidos viejos (formato de partido unico) se preservan como stage
+// 'final' para no perder el historial de supercopas ya jugadas.
+async function migrateSuperCopaStages(db) {
+  if (await columnExists(db, 'super_copa_matches', 'stage')) return;
+  await db.exec(`
+    ALTER TABLE super_copa_matches RENAME TO super_copa_matches_old;
+    CREATE TABLE super_copa_matches (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      season_year INTEGER NOT NULL,
+      stage TEXT NOT NULL CHECK (stage IN ('semifinal1', 'semifinal2', 'final')),
+      home_club_id INTEGER REFERENCES clubs(id),
+      away_club_id INTEGER REFERENCES clubs(id),
+      home_goals INTEGER,
+      away_goals INTEGER,
+      played INTEGER NOT NULL DEFAULT 0,
+      decided_by_penalties INTEGER NOT NULL DEFAULT 0,
+      winner_club_id INTEGER REFERENCES clubs(id),
+      skipped_reason TEXT,
+      UNIQUE(season_year, stage)
+    );
+    INSERT INTO super_copa_matches (id, season_year, stage, home_club_id, away_club_id, home_goals, away_goals, played, decided_by_penalties, winner_club_id, skipped_reason)
+      SELECT id, season_year, 'final', home_club_id, away_club_id, home_goals, away_goals, played, decided_by_penalties, winner_club_id, skipped_reason FROM super_copa_matches_old;
+    DROP TABLE super_copa_matches_old;
   `);
 }
 

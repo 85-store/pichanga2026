@@ -314,6 +314,7 @@ async function startMatch(uid, db, kind, id, seasonYear, options) {
     rowId: row.id,
     seasonYear,
     clStage: kind === 'copa-liga' ? row.stage : null,
+    scStage: kind === 'supercopa' ? row.stage : null,
     roundName: kind === 'copa' ? row.round_name : null,
     managedClubId: managedClubId != null ? managedClubId : null,
     minute: 0,
@@ -948,10 +949,12 @@ async function finalize(db, session, opts) {
       sql: `UPDATE super_copa_matches SET home_goals = ?, away_goals = ?, played = 1, decided_by_penalties = ?, winner_club_id = ? WHERE id = ?`,
       args: [session.home.goals, session.away.goals, decidedByPenalties, winnerClubId, session.rowId],
     });
-    finalizeStmts.push({
-      sql: `INSERT INTO club_titles (club_id, season_year, title_name) VALUES (?, ?, ?)`,
-      args: [winnerClubId, session.seasonYear, 'Campeón Supercopa'],
-    });
+    if (session.scStage === 'final') {
+      finalizeStmts.push({
+        sql: `INSERT INTO club_titles (club_id, season_year, title_name) VALUES (?, ?, ?)`,
+        args: [winnerClubId, session.seasonYear, 'Campeón Supercopa'],
+      });
+    }
   } else if (session.kind === 'copa') {
     finalizeStmts.push({
       sql: `UPDATE copa_matches SET home_goals = ?, away_goals = ?, played = 1, decided_by_penalties = ?, winner_club_id = ? WHERE id = ?`,
@@ -1007,7 +1010,7 @@ async function finalize(db, session, opts) {
   // en el momento, como siempre hizo).
   let championTitle = null;
   if (session.managedClubId != null && winnerClubId === session.managedClubId) {
-    if (session.kind === 'supercopa') {
+    if (session.kind === 'supercopa' && session.scStage === 'final') {
       championTitle = { titleName: 'Campeón Supercopa', trophyImage: 'trophies/supercopa.png' };
     } else if (session.kind === 'copa' && session.roundName === 'Final') {
       championTitle = { titleName: 'Campeón Copa Chile', trophyImage: 'trophies/copa-chile.png' };

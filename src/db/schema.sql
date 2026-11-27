@@ -125,7 +125,8 @@ CREATE TABLE IF NOT EXISTS copa_matches (
 
 CREATE TABLE IF NOT EXISTS super_copa_matches (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  season_year INTEGER NOT NULL UNIQUE,
+  season_year INTEGER NOT NULL,
+  stage TEXT NOT NULL CHECK (stage IN ('semifinal1', 'semifinal2', 'final')),
   home_club_id INTEGER REFERENCES clubs(id),
   away_club_id INTEGER REFERENCES clubs(id),
   home_goals INTEGER,
@@ -133,7 +134,8 @@ CREATE TABLE IF NOT EXISTS super_copa_matches (
   played INTEGER NOT NULL DEFAULT 0,
   decided_by_penalties INTEGER NOT NULL DEFAULT 0,
   winner_club_id INTEGER REFERENCES clubs(id),
-  skipped_reason TEXT
+  skipped_reason TEXT,
+  UNIQUE(season_year, stage)
 );
 
 CREATE TABLE IF NOT EXISTS career (

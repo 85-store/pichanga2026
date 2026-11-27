@@ -63,14 +63,21 @@ async function getUpcomingCalendar(db) {
   const seasonYear = await getCurrentSeasonYear(db);
   const entries = [];
 
-  const sc = await db.prepare('SELECT * FROM super_copa_matches WHERE season_year = ?').get(seasonYear);
-  if (sc && !sc.played && !sc.skipped_reason && (sc.home_club_id === clubId || sc.away_club_id === clubId)) {
+  const SUPER_COPA_STAGE_LABELS = { semifinal1: 'Semifinal', semifinal2: 'Semifinal', final: 'Final' };
+  const sc = await db
+    .prepare(
+      `SELECT * FROM super_copa_matches WHERE season_year = ? AND played = 0 AND skipped_reason IS NULL
+       AND (home_club_id = ? OR away_club_id = ?)
+       ORDER BY CASE stage WHEN 'semifinal1' THEN 1 WHEN 'semifinal2' THEN 1 ELSE 2 END LIMIT 1`
+    )
+    .get(seasonYear, clubId, clubId);
+  if (sc) {
     entries.push(
       await buildEntry(
         db,
         {
           kind: 'supercopa', id: sc.id, homeClubId: sc.home_club_id, awayClubId: sc.away_club_id,
-          competition: 'Supercopa', roundLabel: 'Final', seasonYear, weekOffset: 0,
+          competition: 'Supercopa', roundLabel: SUPER_COPA_STAGE_LABELS[sc.stage] || 'Final', seasonYear, weekOffset: 0,
         },
         clubId
       )

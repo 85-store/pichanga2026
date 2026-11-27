@@ -1,8 +1,12 @@
-// Supercopa: partido unico entre el campeon de Primera A y el campeon de Copa
-// Chile de la temporada anterior, jugado al inicio de la nueva temporada.
+// Supercopa: torneo de 4 equipos jugado al inicio de la temporada con los
+// campeones de la temporada anterior -
+//   Semifinal 1: campeon de Primera A vs campeon de Copa de la Liga
+//   Semifinal 2: campeon de Copa Chile vs subcampeon de Primera A
+//   Final: los 2 ganadores, en partido neutro (sin ventaja de localia extra)
 const { simulateMatch, decidePenalties } = require('./match');
 const { recordMatchStats } = require('./finalize-match');
 const { tickInjuriesOneWeek } = require('./injuries');
+const { getCopaLigaFinalists } = require('./copa-liga');
 
 async function titleChampion(db, seasonYear, titleName) {
   const row = await db
@@ -11,34 +15,83 @@ async function titleChampion(db, seasonYear, titleName) {
   return row ? row.club_id : null;
 }
 
-// Crea (si corresponde) el cruce de Supercopa para seasonYear, usando los
-// campeones de la temporada anterior. No hace nada si ya existe o si todavia
-// no hay ambos titulos registrados (ej. primera temporada del juego).
-async function ensureSuperCopa(db, seasonYear) {
-  const existing = await db.prepare('SELECT id FROM super_copa_matches WHERE season_year = ?').get(seasonYear);
-  if (existing) return;
-
+// Junta los 4 clasificados a la Supercopa de seasonYear, todos salidos de la
+// temporada anterior. Devuelve null si falta alguno (ej. primera temporada
+// del juego, o alguna competicion de la temporada anterior nunca se cerro).
+async function getQualifiers(db, seasonYear) {
   const previousYear = seasonYear - 1;
   const leagueChamp = await titleChampion(db, previousYear, 'Campeón Primera A');
-  const copaChamp = await titleChampion(db, previousYear, 'Campeón Copa Chile');
-  if (!leagueChamp || !copaChamp) return;
+  const leagueRunnerUp = await titleChampion(db, previousYear, 'Subcampeón Primera A');
+  const copaChileChamp = await titleChampion(db, previousYear, 'Campeón Copa Chile');
+  const copaLigaFinalists = await getCopaLigaFinalists(db, previousYear);
+  const copaLigaChamp = copaLigaFinalists ? copaLigaFinalists.championId : null;
+  if (!leagueChamp || !leagueRunnerUp || !copaChileChamp || !copaLigaChamp) return null;
+  return { leagueChamp, leagueRunnerUp, copaChileChamp, copaLigaChamp };
+}
 
-  if (leagueChamp === copaChamp) {
-    await db.prepare(
-      `INSERT INTO super_copa_matches (season_year, home_club_id, away_club_id, played, skipped_reason) VALUES (?, ?, ?, 1, ?)`
-    ).run(seasonYear, leagueChamp, copaChamp, 'mismo_campeon');
+async function insertStageMatch(db, seasonYear, stage, homeClubId, awayClubId) {
+  if (homeClubId === awayClubId) {
+    // Mismo club clasificado dos veces a la misma llave (ej. gano la liga y
+    // tambien la Copa de la Liga): pasa directo, no hay partido que jugar.
+    await db
+      .prepare(
+        `INSERT INTO super_copa_matches (season_year, stage, home_club_id, away_club_id, played, winner_club_id, skipped_reason) VALUES (?, ?, ?, ?, 1, ?, ?)`
+      )
+      .run(seasonYear, stage, homeClubId, awayClubId, homeClubId, 'mismo_campeon');
     return;
   }
+  await db
+    .prepare(`INSERT INTO super_copa_matches (season_year, stage, home_club_id, away_club_id) VALUES (?, ?, ?, ?)`)
+    .run(seasonYear, stage, homeClubId, awayClubId);
+}
 
-  await db.prepare(`INSERT INTO super_copa_matches (season_year, home_club_id, away_club_id) VALUES (?, ?, ?)`).run(
-    seasonYear,
-    leagueChamp,
-    copaChamp
-  );
+// Crea (si corresponde) las 2 semifinales de seasonYear. No hace nada si ya
+// existen o si todavia no estan los 4 clasificados de la temporada anterior.
+async function ensureSuperCopaSemis(db, seasonYear) {
+  const existing = await db
+    .prepare(`SELECT COUNT(*) as c FROM super_copa_matches WHERE season_year = ? AND stage IN ('semifinal1', 'semifinal2')`)
+    .get(seasonYear);
+  if (existing.c > 0) return;
+
+  const qualifiers = await getQualifiers(db, seasonYear);
+  if (!qualifiers) return;
+
+  await insertStageMatch(db, seasonYear, 'semifinal1', qualifiers.leagueChamp, qualifiers.copaLigaChamp);
+  await insertStageMatch(db, seasonYear, 'semifinal2', qualifiers.copaChileChamp, qualifiers.leagueRunnerUp);
+}
+
+async function isSemisComplete(db, seasonYear) {
+  const row = await db
+    .prepare(
+      `SELECT COUNT(*) as c FROM super_copa_matches WHERE season_year = ? AND stage IN ('semifinal1', 'semifinal2') AND played = 0`
+    )
+    .get(seasonYear);
+  const total = await db
+    .prepare(`SELECT COUNT(*) as c FROM super_copa_matches WHERE season_year = ? AND stage IN ('semifinal1', 'semifinal2')`)
+    .get(seasonYear);
+  return total.c === 2 && row.c === 0;
+}
+
+// Crea (si corresponde) la final, una vez jugadas ambas semifinales.
+async function ensureSuperCopaFinal(db, seasonYear) {
+  const existingRow = await db
+    .prepare(`SELECT COUNT(*) as c FROM super_copa_matches WHERE season_year = ? AND stage = 'final'`)
+    .get(seasonYear);
+  if (existingRow.c > 0) return;
+  if (!(await isSemisComplete(db, seasonYear))) return;
+
+  const semis = await db
+    .prepare(`SELECT stage, winner_club_id FROM super_copa_matches WHERE season_year = ? AND stage IN ('semifinal1', 'semifinal2')`)
+    .all(seasonYear);
+  const semi1 = semis.find((s) => s.stage === 'semifinal1');
+  const semi2 = semis.find((s) => s.stage === 'semifinal2');
+  if (!semi1 || !semi2 || !semi1.winner_club_id || !semi2.winner_club_id) return;
+
+  await insertStageMatch(db, seasonYear, 'final', semi1.winner_club_id, semi2.winner_club_id);
 }
 
 async function getSuperCopa(db, seasonYear) {
-  const row = await db
+  const rows = await db
     .prepare(
       `SELECT sc.*, hc.name as home_name, hc.crest_url as home_crest, hc.short_name as home_short,
               ac.name as away_name, ac.crest_url as away_crest, ac.short_name as away_short,
@@ -47,15 +100,27 @@ async function getSuperCopa(db, seasonYear) {
        LEFT JOIN clubs hc ON hc.id = sc.home_club_id
        LEFT JOIN clubs ac ON ac.id = sc.away_club_id
        LEFT JOIN clubs wc ON wc.id = sc.winner_club_id
-       WHERE sc.season_year = ?`
+       WHERE sc.season_year = ?
+       ORDER BY CASE sc.stage WHEN 'semifinal1' THEN 1 WHEN 'semifinal2' THEN 2 ELSE 3 END`
     )
-    .get(seasonYear);
-  return row || null;
+    .all(seasonYear);
+  return {
+    semifinal1: rows.find((r) => r.stage === 'semifinal1') || null,
+    semifinal2: rows.find((r) => r.stage === 'semifinal2') || null,
+    final: rows.find((r) => r.stage === 'final') || null,
+  };
+}
+
+async function isSuperCopaComplete(db, seasonYear) {
+  const final = await db.prepare(`SELECT played FROM super_copa_matches WHERE season_year = ? AND stage = 'final'`).get(seasonYear);
+  return !!final && final.played === 1;
 }
 
 async function isSuperCopaPending(db, seasonYear) {
-  const row = await getSuperCopa(db, seasonYear);
-  return !!row && !row.played;
+  const { semifinal1, semifinal2, final } = await getSuperCopa(db, seasonYear);
+  if (!semifinal1 || !semifinal2) return false;
+  if (!semifinal1.played || !semifinal2.played) return true;
+  return !!final && !final.played;
 }
 
 async function playSuperCopaMatch(db, seasonYear, match) {
@@ -96,21 +161,84 @@ async function playSuperCopaMatch(db, seasonYear, match) {
     events: result.events,
   });
 
-  await db.prepare(`INSERT INTO club_titles (club_id, season_year, title_name) VALUES (?, ?, ?)`).run(
-    winnerClubId,
-    seasonYear,
-    'Campeón Supercopa'
-  );
+  if (match.stage === 'final') {
+    await db.prepare(`INSERT INTO club_titles (club_id, season_year, title_name) VALUES (?, ?, ?)`).run(
+      winnerClubId,
+      seasonYear,
+      'Campeón Supercopa'
+    );
+  }
 
   await tickInjuriesOneWeek(db, seasonYear);
 
   return { ...match, winner_club_id: winnerClubId, decided_by_penalties: decidedByPenalties };
 }
 
-async function playSuperCopaIfPending(db, seasonYear) {
-  const match = await db.prepare('SELECT * FROM super_copa_matches WHERE season_year = ? AND played = 0').get(seasonYear);
-  if (!match) return null;
-  return playSuperCopaMatch(db, seasonYear, match);
+// Idempotente: crea el cruce de Supercopa de seasonYear si corresponde (misma
+// funcion de siempre, mantenida por compatibilidad con ensureSeasonCompetitions).
+async function ensureSuperCopa(db, seasonYear) {
+  await ensureSuperCopaSemis(db, seasonYear);
 }
 
-module.exports = { ensureSuperCopa, getSuperCopa, isSuperCopaPending, playSuperCopaMatch, playSuperCopaIfPending };
+// Avanza la Supercopa lo que se pueda en un solo paso: crea semifinales, juega
+// la siguiente semifinal pendiente, crea la final, juega la final. Se puede
+// llamar repetidamente hasta que isSuperCopaComplete devuelva true.
+async function advanceSuperCopa(db, seasonYear) {
+  await ensureSuperCopaSemis(db, seasonYear);
+
+  const nextSemi = await db
+    .prepare(`SELECT * FROM super_copa_matches WHERE season_year = ? AND stage IN ('semifinal1', 'semifinal2') AND played = 0 ORDER BY stage LIMIT 1`)
+    .get(seasonYear);
+  if (nextSemi) {
+    const played = await playSuperCopaMatch(db, seasonYear, nextSemi);
+    return { stage: nextSemi.stage, matches: [played] };
+  }
+  if (!(await isSemisComplete(db, seasonYear))) {
+    return { stage: 'sin_datos', matches: [] };
+  }
+
+  await ensureSuperCopaFinal(db, seasonYear);
+  const final = await db.prepare(`SELECT * FROM super_copa_matches WHERE season_year = ? AND stage = 'final'`).get(seasonYear);
+  if (final && !final.played) {
+    const played = await playSuperCopaMatch(db, seasonYear, final);
+    return { stage: 'final', matches: [played] };
+  }
+
+  return { stage: 'completa', matches: [] };
+}
+
+async function simulateRemainingSuperCopa(db, seasonYear) {
+  const steps = [];
+  let guard = 0;
+  while (!(await isSuperCopaComplete(db, seasonYear)) && guard < 20) {
+    const step = await advanceSuperCopa(db, seasonYear);
+    steps.push(step);
+    if (step.stage === 'completa' || step.stage === 'sin_datos') break;
+    guard++;
+  }
+  return steps;
+}
+
+// Resuelve de punta a punta la Supercopa de seasonYear si hay algo pendiente
+// (usado al cerrar la temporada, para no dejar nada sin jugar). Devuelve el
+// resultado de la final (con winner_club_id) o null si no hubo Supercopa esta
+// temporada (ej. primera temporada del juego) o ya estaba completa.
+async function playSuperCopaIfPending(db, seasonYear) {
+  await simulateRemainingSuperCopa(db, seasonYear);
+  const final = await db.prepare(`SELECT * FROM super_copa_matches WHERE season_year = ? AND stage = 'final'`).get(seasonYear);
+  if (!final || !final.played) return null;
+  return final;
+}
+
+module.exports = {
+  ensureSuperCopa,
+  ensureSuperCopaSemis,
+  ensureSuperCopaFinal,
+  getSuperCopa,
+  isSuperCopaPending,
+  isSuperCopaComplete,
+  playSuperCopaMatch,
+  playSuperCopaIfPending,
+  advanceSuperCopa,
+  simulateRemainingSuperCopa,
+};

@@ -19,7 +19,7 @@ const {
   getCopaLigaFinalists,
 } = require('../engine/copa-liga');
 const { getInternationalQualifications } = require('../engine/international');
-const { getSuperCopa, isSuperCopaPending, playSuperCopaIfPending } = require('../engine/super-copa');
+const { getSuperCopa, isSuperCopaComplete, advanceSuperCopa } = require('../engine/super-copa');
 const { healAllInjuries } = require('../engine/injuries');
 const { getCareer, getPendingOffers, acceptOffer, declineOffer } = require('../engine/board');
 const { listIdentities, setTeamIdentity } = require('../engine/team-identity');
@@ -546,21 +546,35 @@ function buildApiRouter() {
     try {
       const db = req.db;
       const seasonYear = await getCurrentSeasonYear(db);
-      const match = await getSuperCopa(db, seasonYear);
-      res.json({ seasonYear, match });
+      const bracket = await getSuperCopa(db, seasonYear);
+      res.json({ seasonYear, ...bracket, complete: await isSuperCopaComplete(db, seasonYear) });
     } catch (err) {
       res.status(500).json({ error: err.message });
     }
   });
 
-  router.post('/super-copa/simulate', async (req, res) => {
+  router.post('/super-copa/simulate-step', async (req, res) => {
     try {
       const db = req.db;
       const seasonYear = await getCurrentSeasonYear(db);
-      if (!(await isSuperCopaPending(db, seasonYear))) {
+      if (await isSuperCopaComplete(db, seasonYear)) {
         return res.status(400).json({ error: 'No hay Supercopa pendiente esta temporada.' });
       }
-      const result = await playSuperCopaIfPending(db, seasonYear);
+      // Mismo motivo que en /copa-liga/simulate-step: sin este bloqueo, el
+      // boton de simular le jugaba de golpe el partido propio del usuario sin
+      // que lo viera.
+      const career = await getCareer(db);
+      if (career && career.club_id) {
+        const pendingOwn = await db
+          .prepare(
+            `SELECT id FROM super_copa_matches WHERE season_year = ? AND played = 0 AND (home_club_id = ? OR away_club_id = ?) LIMIT 1`
+          )
+          .get(seasonYear, career.club_id, career.club_id);
+        if (pendingOwn) {
+          return res.status(400).json({ error: 'Debes jugar antes el partido pendiente de tu club en la Supercopa.' });
+        }
+      }
+      const result = await advanceSuperCopa(db, seasonYear);
       res.json(result);
     } catch (err) {
       res.status(500).json({ error: err.message });

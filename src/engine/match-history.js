@@ -45,8 +45,9 @@ async function getMatchHistory(db, { limit } = {}) {
   const scRows = await db
     .prepare(`SELECT * FROM super_copa_matches WHERE played = 1 AND (home_club_id = ? OR away_club_id = ?)`)
     .all(clubId, clubId);
+  const SUPER_COPA_STAGE_LABELS = { semifinal1: 'Semifinal', semifinal2: 'Semifinal', final: 'Final' };
   for (const r of scRows) {
-    rows.push({ ...r, kind: 'supercopa', competition: 'Supercopa', roundLabel: 'Final', weekOffset: 0 });
+    rows.push({ ...r, kind: 'supercopa', competition: 'Supercopa', roundLabel: SUPER_COPA_STAGE_LABELS[r.stage] || 'Final', weekOffset: 0 });
   }
 
   const copaRows = await db
