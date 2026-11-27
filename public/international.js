@@ -114,6 +114,11 @@ function renderCopaLigaData(data) {
       </div>
     </div>
     <div class="view-toolbar">${simBtn}</div>
+    ${
+      complete
+        ? ''
+        : '<div class="copa-hint">Jugá primero tu partido pendiente (acá abajo o desde el Calendario) para no saltártelo sin verlo. Apretá "Simular siguiente etapa" para avanzar los partidos de los demás clubes, armar semifinales y la final.</div>'
+    }
     <div class="copa-liga-groups">${groups.map(clgGroupTableHtml).join('')}</div>
     <div class="copa-bracket">${semisHtml}${finalHtml}</div>`;
 
