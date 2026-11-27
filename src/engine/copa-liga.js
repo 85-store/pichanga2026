@@ -189,24 +189,6 @@ async function playCopaLigaMatch(db, seasonYear, match, { allowPenalties }) {
   return { ...match, home_goals: result.homeGoals, away_goals: result.awayGoals, played: 1, winner_club_id: winnerClubId, decided_by_penalties: decidedByPenalties };
 }
 
-async function simulateGroupStage(db, seasonYear) {
-  const pending = await db
-    .prepare(`SELECT * FROM copa_liga_matches WHERE season_year = ? AND stage = 'grupos' AND played = 0`)
-    .all(seasonYear);
-  if (!pending.length) return [];
-
-  const results = [];
-  const tx = await db.transaction('write');
-  try {
-    for (const m of pending) results.push(await playCopaLigaMatch(tx, seasonYear, m, { allowPenalties: false }));
-    await tx.commit();
-  } catch (err) {
-    await tx.rollback();
-    throw err;
-  }
-  return results;
-}
-
 // Simula una sola ronda (jornada) de un grupo: la que contiene anchorMatchId
 // si se indica (para el grupo del usuario, donde se quiere avanzar la misma
 // ronda que el partido que el usuario esta jugando), o si no la primera ronda
@@ -377,7 +359,20 @@ async function advanceCopaLiga(db, seasonYear) {
   await ensureCopaLigaDraw(db, seasonYear);
 
   if (!(await isGroupStageComplete(db, seasonYear))) {
-    const matches = await simulateGroupStage(db, seasonYear);
+    // Una ronda (jornada) por grupo, no toda la fase de grupos de un golpe:
+    // simulateGroupStage jugaba TODOS los partidos pendientes de los 4 grupos
+    // en una sola transaccion sin punto de corte, que era lo que de verdad
+    // colgaba el avance automatico de temporada cuando la fase de grupos
+    // todavia no se habia tocado (ver el comentario sobre el deadline en
+    // simulateRemainingCopaLiga mas abajo: entre pasos se puede cortar por
+    // tiempo, pero no a mitad de un paso).
+    const groupNames = await db
+      .prepare(`SELECT DISTINCT group_name FROM copa_liga_matches WHERE season_year = ? AND stage = 'grupos'`)
+      .all(seasonYear);
+    const matches = [];
+    for (const { group_name } of groupNames) {
+      matches.push(...(await simulateGroupRound(db, seasonYear, group_name, {})));
+    }
     if (matches.length) await tickInjuriesOneWeek(db, seasonYear);
     return { stage: 'grupos', matches };
   }
@@ -401,11 +396,6 @@ async function advanceCopaLiga(db, seasonYear) {
 }
 
 // deadline: ver el comentario equivalente en league.js simulateRemainingLeague.
-// Importante pasarlo tambien aqui: el primer paso de "grupos" (simulateGroupStage)
-// puede jugar de golpe TODOS los partidos de grupo pendientes de los 4 grupos
-// en una sola transaccion - sin este chequeo entre pasos, el guard<200 por si
-// solo no alcanzaba a cortar a tiempo un avance de temporada con el grupo
-// completo sin jugar.
 async function simulateRemainingCopaLiga(db, seasonYear, { deadline } = {}) {
   const steps = [];
   let guard = 0;
@@ -442,7 +432,6 @@ module.exports = {
   getGroupStandings,
   getAllGroupsOverview,
   isGroupStageComplete,
-  simulateGroupStage,
   simulateGroupRound,
   playCopaLigaMatch,
   ensureSemifinals,
